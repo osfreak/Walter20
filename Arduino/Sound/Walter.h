@@ -68,12 +68,12 @@
 #define  SERVO_PAN_LEFT_MAX   500
 #define  SERVO_PAN_RIGHT_MAX  2400
 #define  SERVO_TILT_PIN       1
-#define  SERVO_TILT_ADJUST    0
+#define  SERVO_TILT_ADJUST    -100
 #define  SERVO_TILT_DOWN_MAX  500
 #define  SERVO_TILT_UP_MAX    2000
 
-#define  SERVO_MOTOR_LEFT_S1  2
-#define  SERVO_MOTOR_RIGHT_S2 3
+#define  SERVO_MOTOR_LEFT     2
+#define  SERVO_MOTOR_RIGHT    3
 
 //  Display routine constants
 const int maxScale = 8;

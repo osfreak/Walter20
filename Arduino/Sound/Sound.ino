@@ -30,6 +30,7 @@
                 Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
 
+#include <Boards.h>
 #include <Wire.h>
 
 #include <RTClib.h>
@@ -58,62 +59,63 @@ void pulseDigital(int pin, int duration) {
 }
 
 /*
-    Display the data for a given sound sample
+    Return a string indicating the direction of a sound
 */
-int displaySoundSample (byte channel, Sample samples[MAX_SAMPLES]) {
+String directionString(byte dir) {
   String st;
-  int error = 0;
-
-  if (! error) {  
-    Serial.print(st);
-    Serial.print(" Sample = ");
-    Serial.print(samples[channel].value);
-    Serial.print(", Voltage = ");
-    Serial.print(samples[channel].volts);
-    Serial.println(" volts");
+  
+  switch (dir) {
+    case FRONT_LEFT_SIDE:
+      st = String("Front Left");
+      break;
+      
+    case FRONT_RIGHT_SIDE:
+      st = String("Front Right");
+      break;
+      
+    case BACK_LEFT_SIDE:
+      st = String("Back Left");
+      break;
+      
+    case BACK_RIGHT_SIDE:
+      st = String("Back Right");
+      break;
+      
+    default:
+      st = String("Invalid");
+      break;
   }
 
-  return error;
+  return st;
+}
+
+/*
+    Display the data for a given sound sample
+*/
+void displaySoundSample (byte channel, Sample *sample) {
+  String st = directionString(channel);
+
+  Serial.print(st);
+  Serial.print(" Sample = ");
+  Serial.print(sample->value);
+  Serial.print(", Voltage = ");
+  Serial.print(sample->volts);
+  Serial.println(" volts");
 }
 
 /*
     Display the direction of a sound detection
 */
-int displaySoundDirection (byte dir) {
-  byte error = 0;
+void displayDirection (byte dir) {
+  String st = directionString(dir);
 
   if ((dir != 0) && (dir != NO_SOUND_DETECTED)) {
     Serial.print("Sound detected from the ");
-    
-    switch (dir) {
-      case FRONT_LEFT_SIDE:
-        Serial.print("Front Left");
-        break;
-      
-      case FRONT_RIGHT_SIDE:
-        Serial.print("Front Right");
-        break;
-      
-      case BACK_LEFT_SIDE:
-        Serial.print("Back Left");
-        break;
-      
-      case BACK_RIGHT_SIDE:
-        Serial.print("Back Right");
-        break;
-      
-      default:
-        Serial.print("Invalid");
-        error = 100;
-        break;
-    }
-    
+    Serial.print(st);    
     Serial.println(".");
   } else if (dir == NO_SOUND_DETECTED) {
     Serial.println("No sound detected.");
   }
-  
-  return error;
 }
 
 /*
@@ -256,103 +258,6 @@ byte detectSound (void) {
 }
 
 /*
-    Move a servo by pulse width in ms (500ms - 2500ms)
-*/
-Servo moveServoPw (Servo servo, int servoPosition, int moveSpeed, int moveTime, boolean term) {
-  Servo tServo = servo;
-  
-  tServo.error = 0;
-  
-  if ((servoPosition >= tServo.minPulse) && (servoPosition <= tServo.maxPulse)) {
-    Serial.print("#");
-    Serial.print(tServo.pin);
-    Serial.print(" P");
-    Serial.print(servoPosition + tServo.offset);
-
-    tServo.msPulse = servoPosition;
-    tServo.angle = ((servoPosition - SERVO_CENTER_MS) / 10);
-    
-    if (tServo.maxDegrees == 180) {
-      tServo.angle += 90;
-    }
-  } else if ((servoPosition < tServo.minPulse) || (servoPosition > tServo.maxPulse)) {
-    tServo.error = 200;
-  }
- 
-  if (tServo.error == 0) {
-    //  Add servo move speed
-    if (moveSpeed != 0) {
-      Serial.print(" S");
-      Serial.print(moveSpeed);
-    }
-    
-    //  Terminate the command
-    if (term) {
-      if (moveTime != 0) {
-        Serial.print(" T");
-        Serial.print(moveTime);
-      }
-      
-      Serial.println();
-    }
-  }
-  
-  return tServo;
-}
-
-/*
-    Move a servo by degrees (-90 to 90) or (0 - 180)
-*/
-Servo moveServoDegrees (Servo servo, int servoDegrees, int moveSpeed, int moveTime, boolean term) {
-  Servo tServo = servo;
-  int servoPulse = SERVO_CENTER_MS + servo.offset;
-
-  tServo.error = 0;
-  
-  //  Convert degrees to ms for the servo move
-  if (tServo.maxDegrees == 90) {
-    servoPulse = (SERVO_CENTER_MS + tServo.offset) + (servoDegrees * 10);
-  } else if (tServo.maxDegrees == 180) {
-    servoPulse = (SERVO_CENTER_MS + tServo.offset) + ((servoDegrees - 90) * 10);
-  }
-
-  if ((servoPulse >= tServo.minPulse) && (servoPulse <= tServo.maxPulse)) {
-    Serial.print("#");
-    Serial.print(tServo.pin);
-    Serial.print(" P");
-    Serial.print(servoPulse);
-    tServo.msPulse = (servoDegrees * 10) + SERVO_CENTER_MS;
-    tServo.angle = servoDegrees;
-    
-    if (tServo.maxDegrees == 180) {
-      tServo.angle += 90;
-    }
-  } else if ((servoPulse < tServo.minPulse) || (servoPulse > tServo.maxPulse)) {
-    tServo.error = 200;
-  }
-  
-  if (tServo.error == 0) {
-    //  Add servo move speed
-    if (moveSpeed != 0) {
-      Serial.print(" S");
-      Serial.print(moveSpeed);
-    }
-    
-    //  Terminate the command
-    if (term) {
-      if (moveTime != 0) {
-        Serial.print(" T");
-        Serial.print(moveTime);
-      }
-      
-      Serial.println();
-    }
-  }
-  
-  return tServo;
-}
-
-/*
     Called when a request from an I2C (Wire) Master comes in
 */
 void wireRequestEvent (void) {
@@ -424,7 +329,7 @@ void loop (void) {
 
   //  Do sound detection
   directionOfSound = detectSound();
-//  error = displaySoundDirection(directionOfSound);
+  displayDirection(directionOfSound);
 
   if (error != 0) {
     processError(error);
