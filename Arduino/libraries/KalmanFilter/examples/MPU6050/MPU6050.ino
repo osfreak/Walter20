@@ -16,7 +16,7 @@
  */
 
 #include <Wire.h>
-#include "Kalman.h" // Source: https://github.com/TKJElectronics/KalmanFilter
+#include "KalmanFilter.h" // Source: https://github.com/TKJElectronics/KalmanFilter
 
 Kalman kalmanX; // Create the Kalman instances
 Kalman kalmanY;

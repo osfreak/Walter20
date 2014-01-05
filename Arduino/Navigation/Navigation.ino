@@ -16,7 +16,10 @@
                   combination moves.
 
   Dependencies: Adafruit libraries:
-                  LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307  
+                  LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
+                
+                Basic Micro libraries:
+                  RoboClaw, BMSerial  
 
                 Hybotics libraries:
                   BMP180 (modified from Adafruit's BMP085 library)
@@ -31,6 +34,7 @@
 */
 
 #include <Wire.h>
+#include <SoftI2CMaster.h>
 
 #include <Adafruit_Sensor.h>
 
@@ -40,7 +44,12 @@
 
 #include <Adafruit_TCS34725.h>
 #include <Adafruit_TMP006.h>
+
 #include <RTClib.h>
+
+#include <RoboClaw.h>
+
+#include <KalmanFilter.h>
 
 #include "Walter.h"
 
@@ -66,11 +75,11 @@
 Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
 Adafruit_L3GD20 gyro;
 Adafruit_LSM303_Accel_Unified accelerometer = Adafruit_LSM303_Accel_Unified(10002);
-Adafruit_LSM303_Mag_Unified magnetometer = Adafruit_LSM303_Mag_Unified(10003);
+Adafruit_LSM303_Mag_Unified compass = Adafruit_LSM303_Mag_Unified(10003);
 
 Adafruit_TCS34725 color = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_TMP006 heat;
-RTC_DS1307 ds1307;
+RTC_DS1307 clock;
 
 /*
     Initialize global variables
@@ -108,6 +117,29 @@ float gp2d12[MAX_GP2D12];
 /****************************************************************
                           Code starts here
 *****************************************************************/
+/*
+    Display accelerometer settings
+*/
+void displayAccelerometerSettings (void) {
+  sensor_t accelSettings;
+  
+  accelerometer.getSensor(&accelSettings);
+  
+  Serial.println("------------------------------------");
+  Serial.print  ("Sensor:       "); Serial.println(accelSettings.name);
+  Serial.print  ("Driver Ver:   "); Serial.println(accelSettings.version);
+  Serial.print  ("Unique ID:    "); Serial.println(accelSettings.sensor_id);
+  Serial.print  ("Max Value:    "); Serial.print(accelSettings.max_value);
+  Serial.println(" m/s^2");
+  Serial.print  ("Min Value:    "); Serial.print(accelSettings.min_value);
+  Serial.println(" m/s^2");
+  Serial.print  ("Resolution:   "); Serial.print(accelSettings.resolution);
+  Serial.println(" m/s^2");  
+  Serial.println("------------------------------------");
+  Serial.println();
+
+  delay(500);
+}
 
 /*
     Display the GP2D12 sensor readings (cm)
@@ -354,18 +386,6 @@ void moveServoDegrees (Servo *servo, int servoDegrees, int moveSpeed, int moveTi
 }
 
 /*
-    Called when a request from an I2C (Wire) Master comes in
-*/
-void wireRequestEvent (void) {
-  
-}
-
-//  Called when the I2C (Wire) Slave receives data from an I2C (Wire) Master
-void wireReceiveData (int nrBytesRead) {
-
-}
-
-/*
     Process error conditions
 */
 void processError (byte err) {
@@ -375,21 +395,57 @@ void processError (byte err) {
 }
 
 /*
+    Called when a request from an I2C (Wire) Master comes in
+*/
+void wireRequestEvent (void) {
+  
+}
+
+/*
+    Called when the I2C (Wire) Slave receives data from an I2C (Wire) Master
+*/
+void wireReceiveData (int nrBytesRead) {
+
+}
+
+/*
     Setup routine - runs just one time
 */
 void setup (void) {
+  //  Initialize the hardware serial port  
+  Serial.begin(115200);
+
   //  Start up the Wire library as a slave device at address 0xE0
   Wire.begin(NAV_I2C_ADDRESS);
 
   //  Register event handler
   Wire.onRequest(wireRequestEvent);
   Wire.onReceive(wireReceiveData);
-
-  //  Initialize the hardware serial port  
-  Serial.begin(115200);
   
   //  Initialize the LED pin as an output.
   pinMode(HEARTBEAT_LED, OUTPUT);
+  
+  /*  Initialize the accelerometer */
+  if(!accelerometer.begin()) {
+    /* There was a problem detecting the LSM303 ... check your connections */
+    Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+    while(1);
+  }
+  
+  /*  Initialize the compass (magnetometer) sensor */
+  if(!compass.begin()) {
+    /* There was a problem detecting the LSM303 ... check your connections */
+    Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+    while(1);
+  }
+
+  /*  Initialize and warn if we couldn't detect the chip */
+  if (!gyro.begin(gyro.L3DS20_RANGE_250DPS)) {
+  //if (!gyro.begin(gyro.L3DS20_RANGE_500DPS)) {
+  //if (!gyro.begin(gyro.L3DS20_RANGE_2000DPS)) {
+    Serial.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
+    while (1);
+  }
   
   //  Put the front pan/tilt in home position
   moveServoPw(&panS, SERVO_CENTER_MS, 0, 0, false);
@@ -406,6 +462,16 @@ void loop (void) {
 
   int analogPin = 0;
   int digitalPin = 0;
+
+  DateTime now = clock.now();
+  sensors_event_t accelEvent, compassEvent, temperatureEvent;
+
+  float accelX, accelY, accelZ;
+  float compassX, compassY, compassZ;
+  int gyroX, gyroY, gyroZ;
+
+  float celsius, fahrenheit, altitude;
+  float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
   
   // Pulse the heartbeat LED
   pulseDigital(HEARTBEAT_LED, 500);
@@ -423,6 +489,114 @@ void loop (void) {
       ping[digitalPin] = readPING(digitalPin + DIGITAL_PIN_BASE, false);
     }
   }
+  
+  /*
+      Temperature
+
+      Get a new BMP180 sensor event 
+  */
+  temperature.getEvent(&temperatureEvent);
+  
+  //  Display the barometric pressure in hPa
+  if (temperatureEvent.pressure) {
+    
+    /* Calculating altitude with reasonable accuracy requires pressure    *
+     * sea level pressure for your position at the moment the data is     *
+     * converted, as well as the ambient temperature in degress           *
+     * celcius.  If you don't have these values, a 'generic' value of     *
+     * 1013.25 hPa can be used (defined as SENSORS_PRESSURE_SEALEVELHPA   *
+     * in sensors.h), but this isn't ideal and will give variable         *
+     * results from one day to the next.                                  *
+     *                                                                    *
+     * You can usually find the current SLP value by looking at weather   *
+     * websites or from environmental information centers near any major  *
+     * airport.                                                           *
+     *                                                                    *
+     * For example, for Paris, France you can check the current mean      *
+     * pressure and sea level at: http://bit.ly/16Au8ol                   */
+
+    //  First we get the current temperature from the BMP180 in celsius and fahrenheit
+    temperature.getTemperature(&celsius);
+    fahrenheit = (celsius * 1.8) + 32;
+
+    //   Convert the atmospheric pressure, SLP and temp to altitude in meters
+    altitude = temperature.pressureToAltitude(seaLevelPressure, accelEvent.pressure, celsius); 
+  }
+
+  /*
+      Get accelerometer readings
+  */
+  accelerometer.getEvent(&accelEvent);
+ 
+  /* Display the results (acceleration is measured in m/s^2) */
+  accelX = accelEvent.acceleration.x;
+  accelY = accelEvent.acceleration.y;
+  accelZ = accelEvent.acceleration.z;
+
+/* 
+  Serial.print("X: ");
+  Serial.print(accelEvent.acceleration.x);
+  Serial.print("  ");
+  Serial.print("Y: ");
+  Serial.print(accelEvent.acceleration.y);
+  Serial.print("  ");
+  Serial.print("Z: ");
+  Serial.print(accelEvent.acceleration.z);
+  Serial.print("  ");
+  Serial.println("m/s^2 ");
+*/
+
+  /*
+      Get compass readings
+  */
+  compass.getEvent(&compassEvent);
+
+  compassX = compassEvent.magnetic.x;
+  compassY = compassEvent.magnetic.y;
+  compassZ = compassEvent.magnetic.z;
+  
+  /* Display the results (magnetic vector values are in micro-Tesla (uT)) */
+
+/*
+  Serial.print("X: ");
+  Serial.print(compassEvent.magnetic.x);
+  Serial.print("  ");
+  Serial.print("Y: ");
+  Serial.print(compassEvent.magnetic.y);
+  Serial.print("  ");
+  Serial.print("Z: ");
+  Serial.print(compassEvent.magnetic.z);
+  Serial.print("  ");
+  Serial.println("uT");
+*/  
+
+  /*
+      Get gyro readings
+  */
+  gyro.read();
+  
+  gyroX = (int)gyro.data.x;
+  gyroY = (int)gyro.data.y;
+  gyroZ = (int)gyro.data.z;
+
+/*  
+  Serial.print("X: ");
+  Serial.print(gyroX);
+  Serial.print(" ");
+  Serial.print("Y: ");
+  Serial.print(gyroY);
+  Serial.print(" ");
+  Serial.print("Z: ");
+  Serial.println(gyroZ);
+*/
+
+  /*
+      Accelerometer and Gyro reactive behaviors
+  */
+
+  /*
+      Distance related reactive behaviors
+  */
 
   if (error != 0) {
     processError(error);
