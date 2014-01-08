@@ -35,7 +35,7 @@
 
 #include <RTClib.h>
 
-#include "Walter.h"
+#include "Sound.h"
 
 /*
     Initialize global variables
