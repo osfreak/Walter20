@@ -4,6 +4,8 @@
 #include <Adafruit_LEDBackpack.h>
 #include <RTClib.h>
 
+#include "IMU.h"
+
 /*************************************************** 
   This is a library for our I2C LED Backpacks
 
@@ -145,18 +147,67 @@ static const uint8_t PROGMEM
     B11111111,
     B11111111
   };
+
+/*
+    Left zero pad a numeric string
+*/
+String leftZeroPadString (String st, uint8_t nrPlaces) {
+  uint8_t i, len;
+  String newStr = st;
+  
+  if (newStr.length() < nrPlaces) {
+    len = st.length();
+  
+    for (i = len; i < nrPlaces; i++) {
+      newStr = String("0" + newStr);
+    }
+  }
+
+  return newStr;
+}
+
+/*
+    Trim trailing zeros from a numeric string
+*/
+String trimTrailingZeros (String st) {
+  uint8_t newStrLen = 0;
+  String newStr = st;
+
+  newStrLen = newStr.length();
+
+  while (newStr.substring(newStrLen - 1) == "0") {
+    newStrLen -= 1;
+    newStr = newStr.substring(0, newStrLen);
+  }
+
+  return newStr;
+}
   
 /*
 	Write a floating point value to the 7-Segment display
 */
-void writeFloat (double value, uint8_t decimal = 2, boolean noblank = false) {
-  long integerPart = 0, decimalPart = 0;
-  double sign = 1.0;
-  uint8_t digitCount = 1, temp = 0, dotPosition = 0;
-  uint8_t intPartLen = 0, decPartLen = 0, valueLen = 0; 
-  boolean decimalPoint = false;
-  String decPartStr, intPartStr, valueStr = String(value, DEC);
 
+/*
+boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits = 4, boolean noblank = false) {
+  boolean exitStatus = true;
+
+  long integerPart = 0, decimalPart = 0;
+  double sign = 1.0, newValue = 0.0;
+  uint8_t digitCount = 1, temp = 0, dotPosition = 0, totalDigits = 0;
+  uint8_t intPartLen = 0, decPartLen = 0, valueLen = 0, nrDigits = 0; 
+  boolean decimalPoint = false;
+  String decPartStr, intPartStr, valueStr;
+  
+  //  Store the sign
+  if (value < 0) {
+    sign = -1.0;
+  } else {
+    sign = 1.0;
+  }
+
+  newValue = abs(value);
+
+  valueStr = String(newValue, DEC);  
   valueLen = valueStr.length();
   dotPosition = valueStr.indexOf(".");
 
@@ -164,26 +215,24 @@ void writeFloat (double value, uint8_t decimal = 2, boolean noblank = false) {
   intPartLen = intPartStr.length();
 //  integerPart = int(value);
 
-  decPartStr = valueStr.substring(dotPosition + 1);
+  decPartStr = trimTrailingZeros(valueStr.substring(dotPosition + 1));
   decPartLen = decPartStr.length();
 //  decimalPart = value - integerPart;
   
-  if (value < 0) {
-    sign = -1.0;
-    value = abs(value);
-  } else {
-    sign = 1.0;
-  }
- 
   Serial.print("(writeFloat) Integer part string = '");
   Serial.print(intPartStr);
   Serial.print("' (");
   Serial.print(intPartLen);
-  Serial.print(") , Decimal part string = '");
-  Serial.println(decPartStr);
+  Serial.println(")");
+
+  Serial.print("Decimal part string = '");
+  Serial.print(decPartStr);
   Serial.print("' (");
   Serial.print(decPartLen);
   Serial.println(")");
+
+  Serial.print("sign = ");
+  Serial.println(sign);
 
   Serial.print("(writeFloat) value string = '");
   Serial.print(valueStr);
@@ -191,44 +240,54 @@ void writeFloat (double value, uint8_t decimal = 2, boolean noblank = false) {
   Serial.print(valueLen);
   Serial.println(")");
 
-/*
-  temp = value / 100;
- 
-  Serial.print("(writeNumber) value = ");
-  Serial.print(value);
-  Serial.print(", temp = ");
-  Serial.println(temp);
-
-  //	Set first digit of the integer portion
-  if ((noblank) or (temp > 9)) {
-/*    
-    Serial.print("(writeNumber) digit = ");
-    Serial.println(digit);
-
-
-    decimalPoint = ((digitCount) == decimal);
-    sevenSeg.writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
-  } else {
-    sevenSeg.clear();
+  //  Find out how many digits we have to display
+  totalDigits = intPartLen + decPartLen;
+  
+  if (sign < 0) {
+    totalDigits += 1;
   }
 
-  //	Set the second digit of the integer portion
-  digitCount += 1;
-  decimalPoint = ((digitCount) == decimal);
-  sevenSeg.writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
+  //  Check to be sure we can display the entire value
+  if ((totalDigits > nrDisplayDigits) || (totalDigits > (NUMBER_DISPLAYS * 4))) {
+    exitStatus = false;
+  }
 
-  //	Set the first digit of the decimal portion
-  temp = value % 100;
-  digitCount += 1;
-  decimalPoint = ((digitCount) == decimal);
-  sevenSeg.writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
+  if (exitStatus) {
+    temp = value / 100;
+ 
+    Serial.print("(writeNumber) value = ");
+    Serial.print(value);
+    Serial.print(", temp = ");
+    Serial.println(temp);
 
-  //	Set the second digit of the decimal portion
-  digitCount += 1;
-  decimalPoint = ((digitCount) == decimal);
-  sevenSeg.writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
-*/
+    //	Set first digit of the integer portion
+    if ((noblank) or (temp > 9)) {
+      decimalPoint = ((digitCount) == decimal);
+      sevenSeg.writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
+    } else {
+      sevenSeg.clear();
+    }
+
+    //	Set the second digit of the integer portion
+    digitCount += 1;
+    decimalPoint = ((digitCount) == decimal);
+    sevenSeg.writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
+
+    //	Set the first digit of the decimal portion
+    temp = value % 100;
+    digitCount += 1;
+    decimalPoint = ((digitCount) == decimal);
+    sevenSeg.writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
+
+    //	Set the second digit of the decimal portion
+    digitCount += 1;
+    decimalPoint = ((digitCount) == decimal);
+    sevenSeg.writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
+  }
+  
+  return exitStatus;
 }
+*/
 
 /*
 	Write a number (integer or floating point) to the 7-Segment display
@@ -275,21 +334,6 @@ void writeNumber (uint16_t value, uint8_t decimal = 2, boolean noblank = false) 
   sevenSeg.writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
 }
 
-String leftZeroPadString (String st, uint8_t nrPlaces) {
-  uint8_t i, len;
-  String newString = st;
-  
-  if (newString.length() < nrPlaces) {
-    len = st.length();
-  
-    for (i = len; i < nrPlaces; i++) {
-      newString = String("0" + newString);
-    }
-  }
-
-  return newString;
-}
-
 float tempFahrenheit (float celsius) {
   return (celsius * 1.8) + 32;
 }
@@ -300,11 +344,11 @@ void setup() {
   Serial.println("IMU Time/Temperature Test");
 
   //  Initialize the 7-Segment display
-  sevenSeg.begin(0x70);
+  sevenSeg.begin(DISPLAY_ADDR_1);
   sevenSeg.setBrightness(1);
   sevenSeg.drawColon(false);
   
-  matrix8x8.begin(0x71);
+  matrix8x8.begin(MATRIX_DISPLAY_ADDR);
   matrix8x8.setBrightness(1);
   matrix8x8.setRotation(3);
 
@@ -318,9 +362,6 @@ void setup() {
   matrix8x8.writeDisplay();
  
   delay(2000);
-  
-  sevenSeg.clear();
-  matrix8x8.clear();
 
   //  Initialize the BMP180 sensor
   if(!bmp180.begin()) {
@@ -328,9 +369,11 @@ void setup() {
     Serial.print("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
     while(1);
   }
-  
-  writeFloat(163.90127, 2, false);
-  writeFloat(-23.0159, 2, false);
+
+/*  
+  writeFloat(163.90127, 2, 4, false);
+  writeFloat(-23.0159, 2, 4, false);
+*/
 }
 
 void loop() {
@@ -350,6 +393,10 @@ void loop() {
   String currYear = leftZeroPadString(String(now.year()), 4);
   String currMinute = leftZeroPadString(String(now.minute()), 2);
   String currSecond = leftZeroPadString(String(now.second()), 2);
+  
+  //  Clear the displays
+  sevenSeg.clear();
+  matrix8x8.clear();
 /*
   Serial.print("Month = ");
   Serial.print(now.month());
