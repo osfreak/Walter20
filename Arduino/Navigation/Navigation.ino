@@ -51,7 +51,7 @@
 
 #include <KalmanFilter.h>
 
-#include "Walter.h"
+#include "Navigation.h"
 
 /*
     Initialize our sensors
@@ -84,6 +84,12 @@ RTC_DS1307 clock;
 /*
     Initialize global variables
 */
+
+/*
+    We have to use a software I2C connection, because the master controller
+      uses the main I2C bus to communicate with us.
+*/
+SoftI2CMaster i2c = SoftI2CMaster(I2C_SDA_PIN, I2C_SCL_PIN, 0);
 
 /*
     Initialize servos
@@ -139,6 +145,48 @@ void displayAccelerometerSettings (void) {
   Serial.println();
 
   delay(500);
+}
+
+void displayAccelerometerReadings (sensors_event_t *accelEvent) {
+  Serial.print("X: ");
+  Serial.print(accelEvent->acceleration.x);
+  Serial.print("  ");
+  Serial.print("Y: ");
+  Serial.print(accelEvent->acceleration.y);
+  Serial.print("  ");
+  Serial.print("Z: ");
+  Serial.print(accelEvent->acceleration.z);
+  Serial.print("  ");
+  Serial.println("m/s^2 ");
+}
+
+/*
+  Display Compass (magnetometer) readings
+  
+  The results (magnetic vector values are in micro-Tesla (uT))
+*/
+void displayCompassReadings (sensors_event_t *compassEvent) {
+  Serial.print("X: ");
+  Serial.print(compassEvent->magnetic.x);
+  Serial.print("  ");
+  Serial.print("Y: ");
+  Serial.print(compassEvent->magnetic.y);
+  Serial.print("  ");
+  Serial.print("Z: ");
+  Serial.print(compassEvent->magnetic.z);
+  Serial.print("  ");
+  Serial.println("uT");
+}
+
+void displayGyroReadings (int gyroX, int gyroY, int gyroZ) {
+  Serial.print("X: ");
+  Serial.print(gyroX);
+  Serial.print(" ");
+  Serial.print("Y: ");
+  Serial.print(gyroY);
+  Serial.print(" ");
+  Serial.print("Z: ");
+  Serial.println(gyroZ);
 }
 
 /*
@@ -533,19 +581,6 @@ void loop (void) {
   accelY = accelEvent.acceleration.y;
   accelZ = accelEvent.acceleration.z;
 
-/* 
-  Serial.print("X: ");
-  Serial.print(accelEvent.acceleration.x);
-  Serial.print("  ");
-  Serial.print("Y: ");
-  Serial.print(accelEvent.acceleration.y);
-  Serial.print("  ");
-  Serial.print("Z: ");
-  Serial.print(accelEvent.acceleration.z);
-  Serial.print("  ");
-  Serial.println("m/s^2 ");
-*/
-
   /*
       Get compass readings
   */
@@ -555,21 +590,6 @@ void loop (void) {
   compassY = compassEvent.magnetic.y;
   compassZ = compassEvent.magnetic.z;
   
-  /* Display the results (magnetic vector values are in micro-Tesla (uT)) */
-
-/*
-  Serial.print("X: ");
-  Serial.print(compassEvent.magnetic.x);
-  Serial.print("  ");
-  Serial.print("Y: ");
-  Serial.print(compassEvent.magnetic.y);
-  Serial.print("  ");
-  Serial.print("Z: ");
-  Serial.print(compassEvent.magnetic.z);
-  Serial.print("  ");
-  Serial.println("uT");
-*/  
-
   /*
       Get gyro readings
   */
@@ -578,17 +598,6 @@ void loop (void) {
   gyroX = (int)gyro.data.x;
   gyroY = (int)gyro.data.y;
   gyroZ = (int)gyro.data.z;
-
-/*  
-  Serial.print("X: ");
-  Serial.print(gyroX);
-  Serial.print(" ");
-  Serial.print("Y: ");
-  Serial.print(gyroY);
-  Serial.print(" ");
-  Serial.print("Z: ");
-  Serial.println(gyroZ);
-*/
 
   /*
       Accelerometer and Gyro reactive behaviors
