@@ -1,3 +1,36 @@
+/*
+  Program:      IMU.ino - Inertial Measurement Unit testing
+  Date:         08-Jan-2014
+  Version:      0.1.2 ALPHA
+
+  Purpose:      To allow experimentation and testing with various IMUs, including
+                  the Adafruit 10 DOF IMU with BMP180 temperature/preasure, LMS303DLHC
+                  3-axis accelerometer/3-axis Magnetometer (compass), and L3GD20
+                  3-axis Gyro that I'm tinkering with now.
+                  
+                This sketch will support multiple 7 segment displays using I2C
+                  backpacks ( http://www.adafruit.com/products/1427 ) from Adafruit.
+                  
+                These are the 1.2" four digit 7 segment displays:
+                  http://www.adafruit.com/products/878 (Red)
+                  http://www.adafruit.com/products/879 (Yellow)
+                  http://www.adafruit.com/products/880 (Green)
+                  http://www.adafruit.com/products/881 (Blue)
+                  http://www.adafruit.com/products/1002 (White)
+  Dependencies: Adafruit libraries:
+                  LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
+
+                Hybotics libraries:
+                  BMP180 (modified from Adafruit's BMP085 library)
+
+  Comments:     Credit is given, where applicable, for code I did not originate.
+                  This sketch started out as an Adafruit tutorial for the electret
+                  microphones being used for sound detection. I've also pulled
+                  code for the GP2D12 IR and PING sensors from the Arduino
+                  Playground, which I have modified to suit my needs.
+
+                Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
+*/
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP180_Unified.h>
 #include <Adafruit_GFX.h>
@@ -42,11 +75,21 @@
 #include <Wire.h> // Enable this line if using Arduino Uno, Mega, etc.
 //#include <TinyWireM.h> // Enable this line if using Adafruit Trinket, Gemma, etc.
 
-Adafruit_7segment sevenSeg = Adafruit_7segment();
 Adafruit_8x8matrix matrix8x8 = Adafruit_8x8matrix();
 
 Adafruit_BMP180_Unified bmp180 = Adafruit_BMP180_Unified(10085);
 RTC_DS1307 rtc;
+
+/*
+    Global variables
+*/
+
+//  Support for multiple 7 segment displays
+Adafruit_7segment sevenSeg[NUMBER_DISPLAYS];
+
+boolean displayDate = true;
+uint8_t dateDisplayFreq = 15;              //  How often to display the date, in minutes
+uint8_t minuteCount = 0;                   //  Count the minutes
 
 static const uint8_t PROGMEM
   hpa_bmp[] = {
@@ -312,26 +355,26 @@ void writeNumber (uint16_t value, uint8_t decimal = 2, boolean noblank = false) 
 */
 
     decimalPoint = ((digitCount) == decimal);
-    sevenSeg.writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
+    sevenSeg[0].writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
   } else {
-    sevenSeg.clear();
+    sevenSeg[0].clear();
   }
 
   //	Set the second digit of the integer portion
   digitCount += 1;
   decimalPoint = ((digitCount) == decimal);
-  sevenSeg.writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
+  sevenSeg[0].writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
 
   //	Set the first digit of the decimal portion
   temp = value % 100;
   digitCount += 1;
   decimalPoint = ((digitCount) == decimal);
-  sevenSeg.writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
+  sevenSeg[0].writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
 
   //	Set the second digit of the decimal portion
   digitCount += 1;
   decimalPoint = ((digitCount) == decimal);
-  sevenSeg.writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
+  sevenSeg[0].writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
 }
 
 float tempFahrenheit (float celsius) {
@@ -339,15 +382,28 @@ float tempFahrenheit (float celsius) {
 }
 
 void setup() {
+  uint8_t nrDisp;
+  
   //  Initialize serial port communication
   Serial.begin(115200);
   Serial.println("IMU Time/Temperature Test");
 
-  //  Initialize the 7-Segment display
-  sevenSeg.begin(DISPLAY_ADDR_1);
+  /*
+      Multiple 7 segment displays will be supported.
+  */
+
+  //  Initialize the 7-Segment display(s)
+  for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
+    sevenSeg[nrDisp] = Adafruit_7segment();
+    sevenSeg[nrDisp].begin(SEVEN_SEG_ADDR_BASE + nrDisp);
+    sevenSeg[nrDisp].setBrightness(1);
+    sevenSeg[nrDisp].drawColon(false);
+  }
+/*  
+  sevenSeg.begin(SEVEN_SEG_ADDR_BASE);
   sevenSeg.setBrightness(1);
   sevenSeg.drawColon(false);
-  
+*/  
   matrix8x8.begin(MATRIX_DISPLAY_ADDR);
   matrix8x8.setBrightness(1);
   matrix8x8.setRotation(3);
@@ -355,10 +411,16 @@ void setup() {
   Serial.println("Testing all displays..");
 
   //  Test all the displays
+  for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
+    sevenSeg[nrDisp].print(8888);
+    sevenSeg[nrDisp].drawColon(true);
+  }
+/*  
   sevenSeg.print(8888);
   sevenSeg.drawColon(true);
+*/
   matrix8x8.drawBitmap(0, 0, allon_bmp, 8, 8, LED_ON);
-  sevenSeg.writeDisplay();
+  sevenSeg[0].writeDisplay();
   matrix8x8.writeDisplay();
  
   delay(2000);
@@ -378,12 +440,13 @@ void setup() {
 
 void loop() {
   boolean amTime;
+  uint8_t displayNr = 0;
   DateTime now = rtc.now();
   float celsius, fahrenheit, altitude;
   float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
-  sensors_event_t event;
+  sensors_event_t bmp180event;
   
-  uint8_t hour = now.hour();
+  uint8_t hour = now.hour(), nrDisplays = 0;
   uint16_t displayInt;
 
   String displayString;
@@ -395,8 +458,13 @@ void loop() {
   String currSecond = leftZeroPadString(String(now.second()), 2);
   
   //  Clear the displays
-  sevenSeg.clear();
+  for (displayNr = 0; displayNr < NUMBER_DISPLAYS; displayNr ++) {
+    sevenSeg[displayNr].clear();
+    sevenSeg[displayNr].drawColon(false);
+  }
+
   matrix8x8.clear();
+
 /*
   Serial.print("Month = ");
   Serial.print(now.month());
@@ -405,33 +473,43 @@ void loop() {
   Serial.print(", Year = ");
   Serial.println(now.year());
 */
-  displayInt = (now.month() * 100) + now.day();
+
 /*  
   Serial.print("displayInt = ");
   Serial.println(displayInt);
 */  
 
-  displayString = String(currMonth + currDay);
-  writeNumber(displayInt, 0, true);
-  matrix8x8.drawBitmap(0, 0, date_bmp, 8, 8, LED_ON);
+  //  Display the date, if it's time
+  if (displayDate) {
+    displayString = String(currMonth + currDay);
 
-  sevenSeg.writeDisplay();
-  matrix8x8.writeDisplay();
+    displayInt = (now.month() * 100) + now.day();  
 
-  delay(5000);
+    //  Month and day
+    writeNumber(displayInt, 0, true);
+    matrix8x8.drawBitmap(0, 0, date_bmp, 8, 8, LED_ON);
 
-  sevenSeg.clear();
-  matrix8x8.clear();  
+    sevenSeg[0].writeDisplay();
+    matrix8x8.writeDisplay();
 
-  sevenSeg.print(now.year());
-  matrix8x8.drawBitmap(0, 0, year_bmp, 8, 8, LED_ON);
+    delay(5000);
 
-  sevenSeg.writeDisplay();
-  matrix8x8.writeDisplay();
+    sevenSeg[0].clear();
+    matrix8x8.clear();  
 
-  delay(5000);
+    //  Year
+    writeNumber(now.year(), 0, false);
+    matrix8x8.drawBitmap(0, 0, year_bmp, 8, 8, LED_ON);
 
-  sevenSeg.clear();
+    sevenSeg[0].writeDisplay();
+    matrix8x8.writeDisplay();
+
+    delay(5000);
+    
+    minuteCount = 0;
+  }
+  
+  sevenSeg[0].clear();
   matrix8x8.clear();  
 
   if (hour > 12) {
@@ -445,9 +523,8 @@ void loop() {
   timeString = leftZeroPadString(String((hour * 100) + now.minute()), 4);
 
   //  Display the current time on the 7 segment display
-//  sevenSeg.print(displayInt);
   writeNumber(displayInt, 0, false);
-  sevenSeg.drawColon(true);
+  sevenSeg[0].drawColon(true);
   
   matrix8x8.clear();
   
@@ -457,12 +534,12 @@ void loop() {
     matrix8x8.drawBitmap(0, 0, pm_bmp, 8, 8, LED_ON);
   }
   
-  sevenSeg.writeDisplay();
+  sevenSeg[0].writeDisplay();
   matrix8x8.writeDisplay();
   
   delay(45000);
 
-  sevenSeg.drawColon(false);
+  sevenSeg[0].drawColon(false);
 
 /*
   //  Display the current time
@@ -487,10 +564,10 @@ void loop() {
 */
 
   /* Get a new sensor event */ 
-  bmp180.getEvent(&event);
+  bmp180.getEvent(&bmp180event);
   
   //  Display the barometric pressure in hPa
-  if (event.pressure) {
+  if (bmp180event.pressure) {
     
     /* Calculating altitude with reasonable accuracy requires pressure    *
      * sea level pressure for your position at the moment the data is     *
@@ -512,7 +589,7 @@ void loop() {
     fahrenheit = tempFahrenheit(celsius);
 
     //   Convert the atmospheric pressure, SLP and temp to altitude in meters
-    altitude = bmp180.pressureToAltitude(seaLevelPressure, event.pressure, celsius); 
+    altitude = bmp180.pressureToAltitude(seaLevelPressure, bmp180event.pressure, celsius); 
 /*
     //  Display the barometric pressure in hPa
     sevenSeg.print(event.pressure);
@@ -524,24 +601,23 @@ void loop() {
 
     delay(5000);
 */
-    //  Display the temperature in Celsius
-//    sevenSeg.print(celsius);
-    writeNumber(int(celsius * 100), 2, false);
-    sevenSeg.writeDisplay();
+
+    //  Display the temperature in Fahrenheit
+    writeNumber(int(fahrenheit * 100), 2, false);
+    sevenSeg[0].writeDisplay();
 
     matrix8x8.clear();
-    matrix8x8.drawBitmap(0, 0, c_bmp, 8, 8, LED_ON);
+    matrix8x8.drawBitmap(0, 0, f_bmp, 8, 8, LED_ON);
     matrix8x8.writeDisplay();
 
     delay(7500);
 
-    //  Display the temperature in Fahrenheit
-//    sevenSeg.print(fahrenheit);
-    writeNumber(int(fahrenheit * 100), 2, false);
-    sevenSeg.writeDisplay();
+    //  Display the temperature in Celsius
+    writeNumber(int(celsius * 100), 2, false);
+    sevenSeg[0].writeDisplay();
 
     matrix8x8.clear();
-    matrix8x8.drawBitmap(0, 0, f_bmp, 8, 8, LED_ON);
+    matrix8x8.drawBitmap(0, 0, c_bmp, 8, 8, LED_ON);
     matrix8x8.writeDisplay();
 
 /*    
@@ -581,6 +657,9 @@ void loop() {
     Serial.println(" m");
     Serial.println("");
 */
+    minuteCount += 1;
+    displayDate = (minuteCount == dateDisplayFreq);
+    
     Serial.println();
     delay(7500);
   }
