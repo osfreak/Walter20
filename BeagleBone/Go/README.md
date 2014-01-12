@@ -1,3 +1,0 @@
-Go language code
-================
-
