@@ -26,45 +26,38 @@
 
 #define	NAV_I2C_ADDRESS			0x50
 
-#define	SPEAKER_OUT				05
-#define	HEARTBEAT_LED       	13
+#define	SPEAKER_OUT			5
+#define	HEARTBEAT_LED       	        13
 
 //  Sensor routine settings
-#define	ANALOG_PIN_BASE			00
+#define	ANALOG_PIN_BASE			0
 #define	DIGITAL_PIN_BASE		12
 
-#define	MAX_PING				0
-#define	MAX_GP2D12				3
+#define	MAX_PING			0
+#define	MAX_GP2D12			3
 
 //  For SoftI2CMaster
-#define	SOFT_I2C_SDA_PIN		08
-#define	SOFT_I2C_SCL_PIN		09
+#define	SOFT_I2C_SDA_PIN		8
+#define	SOFT_I2C_SCL_PIN		9
 
 //	The following settings apply to the SSC-32 servo controller
 #define	SERVO_MAX_DEGREES		90
 #define	SERVO_CENTER_MS			1500
 
-#define	SERVO_PAN_PIN			00
+#define	SERVO_PAN_PIN			0
 #define	SERVO_PAN_ADJUST		0
 #define	SERVO_PAN_LEFT_MAX		500
 #define	SERVO_PAN_RIGHT_MAX		2400
 
-#define	SERVO_TILT_PIN			01
+#define	SERVO_TILT_PIN			1
 #define	SERVO_TILT_ADJUST		-100
 #define	SERVO_TILT_DOWN_MAX		500
 #define	SERVO_TILT_UP_MAX		2000
 
-#define	SERVO_MOTOR_LEFT_PIN	04
-#define	SERVO_MOTOR_LEFT_ADJ	0
-#define	SERVO_MOTOR_RIGHT_PIN	05
-#define	SERVO_MOTOR_RIGHT_ADJ	0
-
-//  Display routine constants
-const int maxScale = 8;
-const int redZone = 5;
-
-//  Sample window width in mS (50 mS = 20Hz)
-const int sampleWindow = 50;
+#define	SERVO_MOTOR_LEFT_PIN      	4
+#define	SERVO_MOTOR_LEFT_ADJ	        0
+#define	SERVO_MOTOR_RIGHT_PIN	        5
+#define	SERVO_MOTOR_RIGHT_ADJ	        0
 
 struct Servo {
 	byte pin;

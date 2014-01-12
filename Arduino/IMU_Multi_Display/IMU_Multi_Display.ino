@@ -34,6 +34,9 @@
 
                 Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
+
+#include <Wire.h>
+
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP180_Unified.h>
 #include <Adafruit_GFX.h>
@@ -42,28 +45,23 @@
 
 #include "IMU_Multi_Display.h"
 
-/****************************************************
+/************************************************************
   This sketch uses the 10DOF IMU from Adafruit, which has a
     BMP180 Temperature/Barometric pressure sensor, a
     LMS303 Three-axis accelerometer, and a
-    L3GD20 Gyro
+    L3GD20 Gyro.
     
     Adafruit product http://www.adafruit.com/products/1604
-*****************************************************/
+*************************************************************/
 
-// Enable one of these two #includes and comment out the other.
-// Conditional #include doesn't work due to Arduino IDE shenanigans.
-#include <Wire.h> // Enable this line if using Arduino Uno, Mega, etc.
-//#include <TinyWireM.h> // Enable this line if using Adafruit Trinket, Gemma, etc.
+/*
+    Global variables
+*/
 
 Adafruit_8x8matrix matrix8x8 = Adafruit_8x8matrix();
 
 Adafruit_BMP180_Unified bmp180 = Adafruit_BMP180_Unified(10085);
 RTC_DS1307 rtc;
-
-/*
-    Global variables
-*/
 
 //  Support for multiple 7 segment displays
 Adafruit_7segment sevenSeg[NUMBER_DISPLAYS];
@@ -208,12 +206,22 @@ String trimTrailingZeros (String st) {
 }
   
 /*
-	Write a floating point value to the 7-Segment display
+    Write a floating point value to the 7-Segment display, such as the 0.56"
+      4 digit displays with I2C backpacks, sold by Adafruit.
+
+    Multiple 7 segment displays are supported automatically. You just have to
+      set the number of displays in the IMU_Multi_Display.h and set the proper
+      I2C addresses for the displays. The base address is 0x70, as shipped by
+      Adafruit. Up to 8 of these displays are supported, with the setup being
+      highest addressed display farthest to the left, and decreasing addresses
+      moving to the right. The lowest addressed (0x70) display has to be at the
+      far right for this to work.
 */
 
 /*
 boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits = 4, boolean noblank = false) {
   boolean exitStatus = true;
+  uint8_t nrDisplays = 1;
 
   long integerPart = 0, decimalPart = 0;
   double sign = 1.0, newValue = 0.0;
@@ -277,6 +285,8 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
   }
 
   if (exitStatus) {
+    nrDisplays = totalDigits / 4;
+
     temp = value / 100;
  
     Serial.print("(writeNumber) value = ");
@@ -287,26 +297,27 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
     //	Set first digit of the integer portion
     if ((noblank) or (temp > 9)) {
       decimalPoint = ((digitCount) == decimal);
-      sevenSeg.writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
+      sevenSeg[0].writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
     } else {
-      sevenSeg.clear();
+      sevenSeg[0].clear();
     }
 
     //	Set the second digit of the integer portion
     digitCount += 1;
     decimalPoint = ((digitCount) == decimal);
-    sevenSeg.writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
+    sevenSeg[0].writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
 
     //	Set the first digit of the decimal portion
-    temp = value % 100;
+    temp = int(value / 100);
+    
     digitCount += 1;
     decimalPoint = ((digitCount) == decimal);
-    sevenSeg.writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
+    sevenSeg[0].writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
 
     //	Set the second digit of the decimal portion
     digitCount += 1;
     decimalPoint = ((digitCount) == decimal);
-    sevenSeg.writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
+    sevenSeg[0].writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
   }
   
   return exitStatus;
@@ -314,9 +325,9 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
 */
 
 /*
-	Write a number (integer or floating point) to the 7-Segment display
+	Write a number (integer or floating point) to a 7-Segment display
 */
-void writeNumber (uint16_t value, uint8_t decimal = 2, boolean noblank = false) {
+void writeNumber (uint8_t displayNr, uint16_t value, uint8_t decimal = 2, boolean noblank = false) {
   uint8_t digitCount = 1, temp = 0;
   boolean decimalPoint = false;
 
@@ -336,26 +347,26 @@ void writeNumber (uint16_t value, uint8_t decimal = 2, boolean noblank = false) 
 */
 
     decimalPoint = ((digitCount) == decimal);
-    sevenSeg[0].writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
+    sevenSeg[displayNr].writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
   } else {
-    sevenSeg[0].clear();
+    sevenSeg[displayNr].clear();
   }
 
   //	Set the second digit of the integer portion
   digitCount += 1;
   decimalPoint = ((digitCount) == decimal);
-  sevenSeg[0].writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
+  sevenSeg[displayNr].writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
 
   //	Set the first digit of the decimal portion
   temp = value % 100;
   digitCount += 1;
   decimalPoint = ((digitCount) == decimal);
-  sevenSeg[0].writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
+  sevenSeg[displayNr].writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
 
   //	Set the second digit of the decimal portion
   digitCount += 1;
   decimalPoint = ((digitCount) == decimal);
-  sevenSeg[0].writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
+  sevenSeg[displayNr].writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
 }
 
 float tempFahrenheit (float celsius) {
@@ -380,11 +391,7 @@ void setup() {
     sevenSeg[nrDisp].setBrightness(1);
     sevenSeg[nrDisp].drawColon(false);
   }
-/*  
-  sevenSeg.begin(SEVEN_SEG_ADDR_BASE);
-  sevenSeg.setBrightness(1);
-  sevenSeg.drawColon(false);
-*/  
+
   matrix8x8.begin(MATRIX_DISPLAY_ADDR);
   matrix8x8.setBrightness(1);
   matrix8x8.setRotation(3);
@@ -396,10 +403,7 @@ void setup() {
     sevenSeg[nrDisp].print(8888);
     sevenSeg[nrDisp].drawColon(true);
   }
-/*  
-  sevenSeg.print(8888);
-  sevenSeg.drawColon(true);
-*/
+
   matrix8x8.drawBitmap(0, 0, allon_bmp, 8, 8, LED_ON);
   sevenSeg[0].writeDisplay();
   matrix8x8.writeDisplay();
@@ -467,7 +471,7 @@ void loop() {
     displayInt = (now.month() * 100) + now.day();  
 
     //  Month and day
-    writeNumber(displayInt, 0, true);
+    writeNumber(0, displayInt, 0, true);
     matrix8x8.drawBitmap(0, 0, date_bmp, 8, 8, LED_ON);
 
     sevenSeg[0].writeDisplay();
@@ -479,7 +483,7 @@ void loop() {
     matrix8x8.clear();  
 
     //  Year
-    writeNumber(now.year(), 0, false);
+    writeNumber(0, now.year(), 0, false);
     matrix8x8.drawBitmap(0, 0, year_bmp, 8, 8, LED_ON);
 
     sevenSeg[0].writeDisplay();
@@ -504,7 +508,7 @@ void loop() {
   timeString = leftZeroPadString(String((hour * 100) + now.minute()), 4);
 
   //  Display the current time on the 7 segment display
-  writeNumber(displayInt, 0, false);
+  writeNumber(0, displayInt, 0, false);
   sevenSeg[0].drawColon(true);
   
   matrix8x8.clear();
@@ -584,7 +588,7 @@ void loop() {
 */
 
     //  Display the temperature in Fahrenheit
-    writeNumber(int(fahrenheit * 100), 2, false);
+    writeNumber(0, int(fahrenheit * 100), 2, false);
     sevenSeg[0].writeDisplay();
 
     matrix8x8.clear();
@@ -594,7 +598,7 @@ void loop() {
     delay(7500);
 
     //  Display the temperature in Celsius
-    writeNumber(int(celsius * 100), 2, false);
+    writeNumber(0, int(celsius * 100), 2, false);
     sevenSeg[0].writeDisplay();
 
     matrix8x8.clear();

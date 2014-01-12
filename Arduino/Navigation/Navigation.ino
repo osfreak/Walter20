@@ -89,7 +89,7 @@ RTC_DS1307 clock;
     We have to use a software I2C connection, because the master controller
       uses the main I2C bus to communicate with us.
 */
-SoftI2CMaster i2c = SoftI2CMaster(I2C_SDA_PIN, I2C_SCL_PIN, 0);
+SoftI2CMaster i2c = SoftI2CMaster(SOFT_I2C_SDA_PIN, SOFT_I2C_SCL_PIN, 0);
 
 /*
     Initialize servos
