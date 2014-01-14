@@ -2,13 +2,21 @@ Walter 2.0 Development
 ======================
 
 Directories:
-
 	Arduino					Arduino code
 		Navigation				Navigation and reactive behaviors
 		Sound					Four channel sound detection, and reactive behaviors
 
-	Raspberry-Pi			Raspberry-Pi code
+	ChipKit					ChipKit Pic32 development
 
-	BeagleBone				BeagleBone (Black) code
+	General					General development
+		Go						Go development
+		Python					Python development
 
-	PandaBoard				PandaBoard (ES) code
+	Raspberry-Pi			Raspberry Pi
+		Go						Go development
+		Python					Python development
+
+	UDOO					UDOO development
+		ArduinoDue				Arduino Due development
+		Linux					Linux
+			Ubuntu					Ubuntu Linux development
