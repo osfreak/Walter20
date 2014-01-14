@@ -295,107 +295,107 @@ String trimTrailingZeros (String st) {
 
 /*
 boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits = 4, boolean noblank = false) {
-  boolean exitStatus = true;
-  uint8_t nrDisplays = 1;
+	boolean exitStatus = true;
+	uint8_t nrDisplays = NUMBER_DISPLAYS;
 
-  long integerPart = 0, decimalPart = 0;
-  double sign = 1.0, newValue = 0.0;
-  uint8_t digitCount = 1, temp = 0, dotPosition = 0, totalDigits = 0;
-  uint8_t intPartLen = 0, decPartLen = 0, valueLen = 0, nrDigits = 0; 
-  boolean decimalPoint = false;
-  String decPartStr, intPartStr, valueStr;
+	long integerPart = 0, decimalPart = 0;
+	double sign = 1.0, newValue = 0.0;
+	uint8_t digitCount = 1, temp = 0, dotPosition = 0, totalDigits = 0;
+	uint8_t intPartLen = 0, decPartLen = 0, valueLen = 0, nrDigits = 0; 
+	boolean decimalPoint = false;
+	String decPartStr, intPartStr, valueStr;
   
-  //  Store the sign
-  if (value < 0) {
-    sign = -1.0;
-  } else {
-    sign = 1.0;
-  }
+	//  Store the sign
+	if (value < 0) {
+		sign = -1.0;
+	} else {
+		sign = 1.0;
+	}
 
-  newValue = abs(value);
+	newValue = abs(value);
 
-  valueStr = String(newValue, DEC);  
-  valueLen = valueStr.length();
-  dotPosition = valueStr.indexOf(".");
+	valueStr = String(newValue, DEC);  
+	valueLen = valueStr.length();
+	dotPosition = valueStr.indexOf(".");
 
-  intPartStr = valueStr.substring(0, dotPosition);
-  intPartLen = intPartStr.length();
-//  integerPart = int(value);
+	intPartStr = valueStr.substring(0, dotPosition);
+	intPartLen = intPartStr.length();
+//	integerPart = int(value);
 
-  decPartStr = trimTrailingZeros(valueStr.substring(dotPosition + 1));
-  decPartLen = decPartStr.length();
-//  decimalPart = value - integerPart;
-  
-  Serial.print("(writeFloat) Integer part string = '");
-  Serial.print(intPartStr);
-  Serial.print("' (");
-  Serial.print(intPartLen);
-  Serial.println(")");
+	decPartStr = trimTrailingZeros(valueStr.substring(dotPosition + 1));
+	decPartLen = decPartStr.length();
+//	decimalPart = value - integerPart;
 
-  Serial.print("Decimal part string = '");
-  Serial.print(decPartStr);
-  Serial.print("' (");
-  Serial.print(decPartLen);
-  Serial.println(")");
+	Serial.print("(writeFloat) Integer part string = '");
+	Serial.print(intPartStr);
+	Serial.print("' (");
+	Serial.print(intPartLen);
+	Serial.println(")");
 
-  Serial.print("sign = ");
-  Serial.println(sign);
+	Serial.print("Decimal part string = '");
+	Serial.print(decPartStr);
+	Serial.print("' (");
+	Serial.print(decPartLen);
+	Serial.println(")");
 
-  Serial.print("(writeFloat) value string = '");
-  Serial.print(valueStr);
-  Serial.print("' (");
-  Serial.print(valueLen);
-  Serial.println(")");
+	Serial.print("sign = ");
+	Serial.println(sign);
 
-  //  Find out how many digits we have to display
-  totalDigits = intPartLen + decPartLen;
-  
-  if (sign < 0) {
-    totalDigits += 1;
-  }
+	Serial.print("(writeFloat) value string = '");
+	Serial.print(valueStr);
+	Serial.print("' (");
+	Serial.print(valueLen);
+	Serial.println(")");
 
-  //  Check to be sure we can display the entire value
-  if ((totalDigits > nrDisplayDigits) || (totalDigits > (NUMBER_DISPLAYS * 4))) {
-    exitStatus = false;
-  }
+	//	Find out how many digits we have to display
+	totalDigits = intPartLen + decPartLen;
 
-  if (exitStatus) {
-    nrDisplays = totalDigits / 4;
+	if (sign < 0) {
+		totalDigits += 1;
+	}
 
-    temp = value / 100;
+	//	Check to be sure we can display the entire value
+	if ((totalDigits > nrDisplayDigits) || (totalDigits > (NUMBER_DISPLAYS * 4))) {
+		exitStatus = false;
+	}
+
+	if (exitStatus) {
+		nrDisplays = totalDigits / 4;
+
+		temp = value / 100;
  
-    Serial.print("(writeNumber) value = ");
-    Serial.print(value);
-    Serial.print(", temp = ");
-    Serial.println(temp);
+		Serial.print("(writeNumber) value = ");
+		Serial.print(value);
+		Serial.print(", temp = ");
+		Serial.println(temp);
 
-    //	Set first digit of the integer portion
-    if ((noblank) or (temp > 9)) {
-      decimalPoint = ((digitCount) == decimal);
-      sevenSeg[0].writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
-    } else {
-      sevenSeg[0].clear();
-    }
+		//	Set first digit of the integer portion
+		if ((noblank) or (temp > 9)) {
+			decimalPoint = ((digitCount) == decimal);
+			sevenSeg[0].writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
+		} else {
+			sevenSeg[0].clear();
+		}
 
-    //	Set the second digit of the integer portion
-    digitCount += 1;
-    decimalPoint = ((digitCount) == decimal);
-    sevenSeg[0].writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
+		//	Set the second digit of the integer portion
+		digitCount += 1;
+		decimalPoint = ((digitCount) == decimal);
+		sevenSeg[0].writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
 
-    //	Set the first digit of the decimal portion
-    temp = int(value / 100);
+		//	Set the first digit of the decimal portion
+		temp = int(value / 100);
     
-    digitCount += 1;
-    decimalPoint = ((digitCount) == decimal);
-    sevenSeg[0].writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
+		digitCount += 1;
+		decimalPoint = ((digitCount) == decimal);
+		sevenSeg[0].writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
 
-    //	Set the second digit of the decimal portion
-    digitCount += 1;
-    decimalPoint = ((digitCount) == decimal);
-    sevenSeg[0].writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
-  }
+		//	Set the second digit of the decimal portion
+		digitCount += 1;
+		decimalPoint = ((digitCount) == decimal);
+		sevenSeg[0].writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
+	}
   
-  return exitStatus;
+	return exitStatus;
 }
 */
 
@@ -897,7 +897,7 @@ void loop() {
 	uint8_t analogPin = 0;
 	uint8_t digitalPin = 0;
 	uint8_t displayNr = 0;
-	uint8_t hour = now.hour(), nrDisplays = 0;
+	uint8_t hour = now.hour();
 
 	float celsius, fahrenheit, altitude;
 	float accelX, accelY, accelZ;
@@ -933,19 +933,15 @@ void loop() {
 
 	matrix8x8.clear();
 
-/*
 	Serial.print("Month = ");
 	Serial.print(now.month());
 	Serial.print(", Day = ");
 	Serial.print(now.day());
 	Serial.print(", Year = ");
 	Serial.println(now.year());
-*/
 
 	//  Display the date, if it's time
 	if (displayDate) {
-		displayString = String(currMonth + currDay);
-
 		displayInt = (now.month() * 100) + now.day();  
 
 		//  Month and day
@@ -976,7 +972,10 @@ void loop() {
 	sevenSeg[0].clear();
 	matrix8x8.clear();
 
-	if (hour == 12) {
+	if (hour == 0) {
+		hour = 12;
+		amTime = true;
+	} else if (hour == 12) {
 		amTime = false;
 	} else if (hour > 12) {
 		amTime = false;
