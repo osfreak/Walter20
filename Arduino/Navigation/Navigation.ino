@@ -64,22 +64,23 @@
 */
 
 /*
-    Initialize our sensors
-    
-    We have:
-      These are all on a single small board from Adafruit
-        http://www.adafruit.com/products/1604
-        A BMP180 temperature and pressure sensor
-        An L3GD20 Gyro
-        An LSM303 3-Axis accelerometer / magnetometer (compass)
-      
-      These are also from Adafruit:
-        http://www.adafruit.com/products/1334 (TCS34725 RGB Color sensor)
-        http://www.adafruit.com/products/1296 (TMP006 Heat sensor)
-        http://www.adafruit.com/products/264 (DS1307 Realtime Clock)
-      
-      GP2D12 IR Ranging sensors (3)
-      PING Ultrasonic Ranging sensors (3)
+	Initialize our sensors
+
+	We have:
+		These are all on a single small board from Adafruit
+			http://www.adafruit.com/products/1604
+				A BMP180 temperature and pressure sensor
+				An L3GD20 Gyro
+				An LSM303 3-Axis accelerometer / magnetometer (compass)
+
+		These are also from Adafruit:
+			http://www.adafruit.com/products/1334 (TCS34725 RGB Color sensor)
+			http://www.adafruit.com/products/1296 (TMP006 Heat sensor)
+			http://www.adafruit.com/products/264 (DS1307 Realtime Clock)
+
+		From other sources:
+			GP2D12 IR Ranging sensors (3)
+			PING Ultrasonic Ranging sensors (3)
 */
 
 Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
@@ -116,25 +117,25 @@ SoftI2CMaster i2c = SoftI2CMaster(SOFT_I2C_SDA_PIN, SOFT_I2C_SCL_PIN, 0);
 */
 
 Servo panS = {
-  SERVO_PAN_PIN,
-  SERVO_PAN_ADJUST,
-  0,
-  0,
-  SERVO_PAN_LEFT_MAX,
-  SERVO_PAN_RIGHT_MAX,
-  SERVO_MAX_DEGREES,
-  0
+	SERVO_PAN_PIN,
+	SERVO_PAN_ADJUST,
+	0,
+	0,
+	SERVO_PAN_LEFT_MAX,
+	SERVO_PAN_RIGHT_MAX,
+	SERVO_MAX_DEGREES,
+	0
 };
 
 Servo tiltS = {
-  SERVO_TILT_PIN,
-  SERVO_TILT_ADJUST,
-  0,
-  0,
-  SERVO_TILT_DOWN_MAX,
-  SERVO_TILT_UP_MAX,
-  SERVO_MAX_DEGREES,
-  0
+	SERVO_TILT_PIN,
+	SERVO_TILT_ADJUST,
+	0,
+	0,
+	SERVO_TILT_DOWN_MAX,
+	SERVO_TILT_UP_MAX,
+	SERVO_MAX_DEGREES,
+	0
 };
 
 //  These are where the range sensor readings are stored.
@@ -146,151 +147,151 @@ uint8_t dateDisplayFreq = 15;              //  How often to display the date, in
 uint8_t minuteCount = 0;                   //  Count the minutes
 
 static const uint8_t PROGMEM
-  hpa_bmp[] = {
-    B10001110,
-    B10001001,
-    B11101110,
-    B10101000,
-    B00000100,
-    B00001010,
-    B00011111,
-    B00010001
-  },
-    
-  c_bmp[] = {
-    B01110000,
-    B10001000,
-    B10000000,
-    B10001000,
-    B01110000,
-    B00000000,
-    B00000000,
-    B00000000
-  },
-    
-  f_bmp[] = {
-    B11111000,
-    B10000000,
-    B11100000,
-    B10000000,
-    B10000000,
-    B00000000,
-    B00000000,
-    B00000000
-  },
-    
-  m_bmp[] = {
-    B00000000,
-    B00000000,
-    B00000000,
-    B00000000,
-    B11101110,
-    B10111010,
-    B10010010,
-    B10000010
-  },
+	hpa_bmp[] = {
+		B10001110,
+		B10001001,
+		B11101110,
+		B10101000,
+		B00000100,
+		B00001010,
+		B00011111,
+		B00010001
+	},
 
-  date_bmp[] = {
-    B10110110,
-    B01001001,
-    B01001001,
-    B00000100,
-    B00000100,
-    B01111100,
-    B10000100,
-    B01111100
-  },
-  
-  year_bmp[] = {
-    B00000000,
-    B10001000,
-    B10001000,
-    B01110000,
-    B00101011,
-    B00101100,
-    B00101000,
-    B00000000
-  },
-  
-  am_bmp[] = {
-    B01110000,
-    B10001010,
-    B10001010,
-    B01110100,
-    B00110110,
-    B01001001,
-    B01001001,
-    B01001001
-  },
- 
-  pm_bmp[] = {
-    B01111100,
-    B10000010,
-    B11111100,
-    B10000000,
-    B10110110,
-    B01001001,
-    B01001001,
-    B01001001
-  },
-  
-  allon_bmp[] = {
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111
-  };
+	c_bmp[] = {
+		B01110000,
+		B10001000,
+		B10000000,
+		B10001000,
+		B01110000,
+		B00000000,
+		B00000000,
+		B00000000
+	},
+
+	f_bmp[] = {
+		B11111000,
+		B10000000,
+		B11100000,
+		B10000000,
+		B10000000,
+		B00000000,
+		B00000000,
+		B00000000
+	},
+
+	m_bmp[] = {
+		B00000000,
+		B00000000,
+		B00000000,
+		B00000000,
+		B11101110,
+		B10111010,
+		B10010010,
+		B10000010
+	},
+
+	date_bmp[] = {
+		B10110110,
+		B01001001,
+		B01001001,
+		B00000100,
+		B00000100,
+		B01111100,
+		B10000100,
+		B01111100
+	},
+
+	year_bmp[] = {
+		B00000000,
+		B10001000,
+		B10001000,
+		B01110000,
+		B00101011,
+		B00101100,
+		B00101000,
+		B00000000
+	},
+
+	am_bmp[] = {
+		B01110000,
+		B10001010,
+		B10001010,
+		B01110100,
+		B00110110,
+		B01001001,
+		B01001001,
+		B01001001
+	},
+
+	pm_bmp[] = {
+		B01111100,
+		B10000010,
+		B11111100,
+		B10000000,
+		B10110110,
+		B01001001,
+		B01001001,
+		B01001001
+	},
+
+	allon_bmp[] = {
+		B11111111,
+		B11111111,
+		B11111111,
+		B11111111,
+		B11111111,
+		B11111111,
+		B11111111,
+		B11111111
+	};
 
 /*
     Left zero pad a numeric string
 */
 String leftZeroPadString (String st, uint8_t nrPlaces) {
-  uint8_t i, len;
-  String newStr = st;
-  
-  if (newStr.length() < nrPlaces) {
-    len = st.length();
-  
-    for (i = len; i < nrPlaces; i++) {
-      newStr = String("0" + newStr);
-    }
-  }
+	uint8_t i, len;
+	String newStr = st;
 
-  return newStr;
+	if (newStr.length() < nrPlaces) {
+		len = st.length();
+
+		for (i = len; i < nrPlaces; i++) {
+			newStr = String("0" + newStr);
+		}
+	}
+
+	return newStr;
 }
 
 /*
     Trim trailing zeros from a numeric string
 */
 String trimTrailingZeros (String st) {
-  uint8_t newStrLen = 0;
-  String newStr = st;
+	uint8_t newStrLen = 0;
+	String newStr = st;
 
-  newStrLen = newStr.length();
+	newStrLen = newStr.length();
 
-  while (newStr.substring(newStrLen - 1) == "0") {
-    newStrLen -= 1;
-    newStr = newStr.substring(0, newStrLen);
-  }
+	while (newStr.substring(newStrLen - 1) == "0") {
+		newStrLen -= 1;
+		newStr = newStr.substring(0, newStrLen);
+	}
 
-  return newStr;
+	return newStr;
 }
   
 /*
-    Write a floating point value to the 7-Segment display, such as the 0.56"
-      4 digit displays with I2C backpacks, sold by Adafruit.
+	Write a floating point value to the 7-Segment display, such as the 0.56"
+		4 digit displays with I2C backpacks, sold by Adafruit.
 
-    Multiple 7 segment displays are supported automatically. You just have to
-      set the number of displays in the IMU_Multi_Display.h and set the proper
-      I2C addresses for the displays. The base address is 0x70, as shipped by
-      Adafruit. Up to 8 of these displays are supported, with the setup being
-      highest addressed display farthest to the left, and decreasing addresses
-      moving to the right. The lowest addressed (0x70) display has to be at the
-      far right for this to work.
+	Multiple 7 segment displays are supported automatically. You just have to
+		set the number of displays in the IMU_Multi_Display.h and set the proper
+		I2C addresses for the displays. The base address is 0x70, as shipped by
+		Adafruit. Up to 8 of these displays are supported, with the setup being
+		highest addressed display farthest to the left, and decreasing addresses
+		moving to the right. The lowest addressed (0x70) display has to be at the
+		far right for this to work.
 */
 
 /*
@@ -544,93 +545,100 @@ void displayGP2D12 (void) {
 }
 
 /* 
-    Function that reads a value from GP2D12 infrared distance sensor and returns a
-      value in centimeters.
+	Function that reads a value from GP2D12 infrared distance sensor and returns a
+		value in centimeters.
 
-    This sensor should be used with a refresh rate of 36ms or greater.
+	This sensor should be used with a refresh rate of 36ms or greater.
 
-    Javier Valencia 2008
+	Javier Valencia 2008
 
-    float read_gp2d12(byte pin)
+	float read_gp2d12(byte pin)
 
-    It can return -1 if something gone wrong.
+	It can return -1 if something gone wrong.
     
-    TODO: Make several readings over a time period, and average them
-      for the final reading.
+	TODO: Make several readings over a time period, and average them
+		for the final reading.
 */
 float readGP2D12 (byte pin) {
-  int tmp;
+	int tmp;
 
-  tmp = analogRead(pin);
+	tmp = analogRead(pin);
 
-  if (tmp < 3)
-    return -1;                                  // Invalid value
-  else
-    return (6787.0 /((float)tmp - 3.0)) - 4.0;  // Distance in cm
-} 
+	if (tmp < 3) {
+		return -1;                                  // Invalid value
+	} else {
+		return (6787.0 /((float)tmp - 3.0)) - 4.0;  // Distance in cm
+	}
+}
 
 /*
     Convert a pulse width in ms to inches
 */
 long microsecondsToInches(long microseconds) {
-  // According to Parallax's datasheet for the PING))), there are
-  // 73.746 microseconds per inch (i.e. sound travels at 1130 feet per
-  // second).  This gives the distance travelled by the ping, outbound
-  // and return, so we divide by 2 to get the distance of the obstacle.
-  // See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
-  return microseconds / 74 / 2;
+	/*
+		According to Parallax's datasheet for the PING))), there are
+			73.746 microseconds per inch (i.e. sound travels at 1130 feet per
+			second).  This gives the distance travelled by the ping, outbound
+			and return, so we divide by 2 to get the distance of the obstacle.
+		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
+	*/
+	return microseconds / 74 / 2;
 }
 
 /*
     Convert a pulse width in ms to a distance in cm
 */
 long microsecondsToCentimeters(long microseconds) {
-  // The speed of sound is 340 m/s or 29 microseconds per centimeter.
-  // The ping travels out and back, so to find the distance of the
-  // object we take half of the distance travelled.
-  return microseconds / 29 / 2;
+	/*
+		The speed of sound is 340 m/s or 29 microseconds per centimeter.
+
+		The ping travels out and back, so to find the distance of the
+			object we take half of the distance travelled.
+	*/
+	return microseconds / 29 / 2;
 }
 
 void displayPING (void) {
-  int sensorNr;
+	int sensorNr;
   
-  // Display PING sensor readings (cm)
-  for (sensorNr = 0; sensorNr < MAX_PING; sensorNr++) {
-    Serial.print("Ping #");
-    Serial.print(sensorNr + 1);
-    Serial.print(" range = ");
-    Serial.print(ping[sensorNr]);
-    Serial.println(" cm");
-  }
+	//	Display PING sensor readings (cm)
+	for (sensorNr = 0; sensorNr < MAX_PING; sensorNr++) {
+		Serial.print("Ping #");
+		Serial.print(sensorNr + 1);
+		Serial.print(" range = ");
+		Serial.print(ping[sensorNr]);
+		Serial.println(" cm");
+	}
  
-  Serial.println("");
+	Serial.println("");
 }
 
 /*
-    Ping))) Sensor 
-    This sketch reads a PING))) ultrasonic rangefinder and returns the
-    distance to the closest object in range. To do this, it sends a pulse
-    to the sensor to initiate a reading, then listens for a pulse
-    to return.  The length of the returning pulse is proportional to
-    the distance of the object from the sensor.
-     
-    The circuit:
-      * +V connection of the PING))) attached to +5V
-      * GND connection of the PING))) attached to ground
-      * SIG connection of the PING))) attached to digital pin 7
+	Ping))) Sensor 
 
-    http://www.arduino.cc/en/Tutorial/Ping
-   
-    Created 3 Nov 2008
-      by David A. Mellis
- 
-    Modified 30-Aug-2011
-      by Tom Igoe
+	This routine reads a PING))) ultrasonic rangefinder and returns the
+		distance to the closest object in range. To do this, it sends a pulse
+		to the sensor to initiate a reading, then listens for a pulse
+		to return.  The length of the returning pulse is proportional to
+		the distance of the object from the sensor.
 
-    Modified 09-Aug-2013
-      by Dale Weber
+	The circuit:
+		* +V connection of the PING))) attached to +5V
+		* GND connection of the PING))) attached to ground
+		* SIG connection of the PING))) attached to digital pin 7
 
-    Set units = true for inches, and false for cm
+	http://www.arduino.cc/en/Tutorial/Ping
+
+	Created 3 Nov 2008
+		by David A. Mellis
+
+	Modified 30-Aug-2011
+		by Tom Igoe
+
+	Modified 09-Aug-2013
+		by Dale Weber
+
+		Set units = true for inches, and false for cm
 */
 int readPING (byte pingPin, boolean units) {
 	long duration;
