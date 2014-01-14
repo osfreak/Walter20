@@ -2,6 +2,7 @@ Walter 2.0 Development
 ======================
 
 Directories:
+
 	Arduino					Arduino code
 		Navigation				Navigation and reactive behaviors
 		Sound					Four channel sound detection, and reactive behaviors
