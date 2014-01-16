@@ -124,8 +124,8 @@ Servo tiltS = {
 };
 
 //  These are where the range sensor readings are stored.
-int ping[MAX_PING];
-float ir[MAX_IR];
+int ping[MAX_NUMBER_PING];
+float ir[MAX_NUMBER_IR];
 
 boolean displayDate = true;					//	Whether to display the date or not
 uint8_t dateDisplayFreq = 15;				//  How often to display the date, in minutes
@@ -280,7 +280,7 @@ void displayIR (void) {
 	Serial.println("IR Sensor readings");
 	Serial.println("------------------------------------");
 
-	for (sensorNr = 0; sensorNr < MAX_IR; sensorNr++) { 
+	for (sensorNr = 0; sensorNr < MAX_NUMBER_IR; sensorNr++) { 
 		Serial.print("IR #");
 		Serial.print(sensorNr + 1);
 		Serial.print(" range = ");
@@ -298,7 +298,7 @@ void displayPING (void) {
 	int sensorNr;
   
 	//	Display PING sensor readings (cm)
-	for (sensorNr = 0; sensorNr < MAX_PING; sensorNr++) {
+	for (sensorNr = 0; sensorNr < MAX_NUMBER_PING; sensorNr++) {
 		Serial.print("Ping #");
 		Serial.print(sensorNr + 1);
 		Serial.print(" range = ");
@@ -686,15 +686,15 @@ void loop() {
 	*/
 
 	//	Get readings from all the GP2Y0A21YK0F Analog IR range sensors, if any, and store them
-	if (MAX_IR > 0) {
-		for (analogPin = 0; analogPin < MAX_IR; analogPin++) { 
+	if (MAX_NUMBER_IR > 0) {
+		for (analogPin = 0; analogPin < MAX_NUMBER_IR; analogPin++) { 
 			ir[analogPin] = readIR(analogPin);
 		}
 	}
 
 	//	Get readings from all the Parallax PING Ultrasonic range sensors, if any, and store them
-	if (MAX_PING > 0) {
-		for (digitalPin = 0; digitalPin < MAX_PING; digitalPin++) {
+	if (MAX_NUMBER_PING > 0) {
+		for (digitalPin = 0; digitalPin < MAX_NUMBER_PING; digitalPin++) {
 			ping[digitalPin] = readPING(digitalPin + DIGITAL_PIN_BASE, false);
 		}
 	}

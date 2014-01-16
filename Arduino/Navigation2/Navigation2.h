@@ -29,12 +29,24 @@
 #define	SPEAKER_OUT						5
 #define	HEARTBEAT_LED       	        13
 
-//  Sensor routine settings
+/*
+	Sensor settings
+*/
 #define	ANALOG_PIN_BASE					0
 #define	DIGITAL_PIN_BASE				6
 
-#define	MAX_PING						3
-#define	MAX_IR							1
+#define	MAX_NUMBER_PING					3
+
+#define	PING_FRONT_LEFT					0
+#define	PING_FRONT_CENTER				1
+#define	PING_FRONT_RIGHT				2
+
+#define	MAX_NUMBER_IR					1
+
+#define	IR_FRONT_CENTER					0
+#define	IR_BACK_LEFT					1
+#define	IR_BACK_CENTER					2
+#define	IR_BACK_RIGHT					3
 
 //  For SoftI2CMaster
 #define	SOFT_I2C_SDA_PIN				2
@@ -83,16 +95,6 @@ struct Servo {
 	int maxDegrees;
 
 	int error;
-};
-
-enum SensorLocation {
-	FRONT_LEFT,
-	FRONT_CENTER,
-	FRONT_RIGHT,
-
-	BACK_LEFT,
-	BACK_CENTER,
-	BACK_RIGHT
 };
 
 enum MotorLocation {
