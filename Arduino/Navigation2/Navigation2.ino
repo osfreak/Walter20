@@ -1,14 +1,13 @@
 /*
-	Program:      	W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors
-	Date:         	13-Jan-2014
-	Version:      	0.1.4 ALPHA
+	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
+	Date:			15-Jan-2014
+	Version:		0.1.5 ALPHA
 
-	Purpose:      	Added new displaySoundDirection() routine. I've started to add some
-						error handling code, as well as code to handle Wire (I2C) slave
-						operation.
+	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
+						not sure the sensor locations are going to work out.
 
 	Dependencies:	Adafruit libraries:
-                  		LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
+						LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
 
 					Hybotics libraries:
 						BMP180 (modified from Adafruit's BMP085 library)
@@ -16,7 +15,7 @@
 	Comments:		Credit is given, where applicable, for code I did not originate.
 						This sketch started out as an Adafruit tutorial for the electret
 						microphones being used for sound detection. I've also pulled
-						code for the GP2D12 IR and PING sensors from the Arduino
+						code for the GP2Y0A21YK0F IR and PING sensors from the Arduino
 						Playground, which I have modified to suit my needs.
 
 					Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
@@ -45,7 +44,7 @@
 */
 #include <SoftI2CMaster.h>
 
-#include "Navigation.h"
+#include "Navigation2.h"
 
 /***************************************************************************
   This sketch uses the 10DOF IMU from Adafruit, which has a
@@ -76,7 +75,7 @@
 			http://www.adafruit.com/products/264 (DS1307 Realtime Clock)
 
 		From other sources:
-			GP2D12 IR Ranging sensors (3)
+			GP2Y0A21YK0F IR Ranging sensors (4)
 			PING Ultrasonic Ranging sensors (3)
 */
 
@@ -126,7 +125,7 @@ Servo tiltS = {
 
 //  These are where the range sensor readings are stored.
 int ping[MAX_PING];
-float gp2d12[MAX_GP2D12];
+float ir[MAX_IR];
 
 boolean displayDate = true;					//	Whether to display the date or not
 uint8_t dateDisplayFreq = 15;				//  How often to display the date, in minutes
@@ -272,42 +271,60 @@ float tempFahrenheit (float celsius) {
 }
 
 /*
-    Display the GP2D12 sensor readings (cm)
+    Display the GP2Y0A21YK0F IR sensor readings (cm)
 */
-void displayGP2D12 (void) {
+void displayIR (void) {
 	int sensorNr;
   
 	Serial.println("------------------------------------");
-	Serial.println("GPD12 IR Sensor readings");
+	Serial.println("IR Sensor readings");
 	Serial.println("------------------------------------");
 
-	for (sensorNr = 0; sensorNr < MAX_GP2D12; sensorNr++) { 
-		Serial.print("gp2d12 #");
+	for (sensorNr = 0; sensorNr < MAX_IR; sensorNr++) { 
+		Serial.print("IR #");
 		Serial.print(sensorNr + 1);
 		Serial.print(" range = ");
-		Serial.print(gp2d12[sensorNr]);
+		Serial.print(ir[sensorNr]);
 		Serial.println(" cm");
 	}
 
 	Serial.println();  
 }
 
+/*
+	Display the readings from the PING Ultrasonic sensors
+*/
+void displayPING (void) {
+	int sensorNr;
+  
+	//	Display PING sensor readings (cm)
+	for (sensorNr = 0; sensorNr < MAX_PING; sensorNr++) {
+		Serial.print("Ping #");
+		Serial.print(sensorNr + 1);
+		Serial.print(" range = ");
+		Serial.print(ping[sensorNr]);
+		Serial.println(" cm");
+	}
+ 
+	Serial.println("");
+}
+
 /* 
-	Function that reads a value from GP2D12 infrared distance sensor and returns a
+	Function that reads a value from GP2Y0A21YK0F infrared distance sensor and returns a
 		value in centimeters.
 
 	This sensor should be used with a refresh rate of 36ms or greater.
 
 	Javier Valencia 2008
 
-	float read_gp2d12(byte pin)
+	float readIR(byte pin)
 
 	It can return -1 if something gone wrong.
-    
+
 	TODO: Make several readings over a time period, and average them
 		for the final reading.
 */
-float readGP2D12 (byte pin) {
+float readIR (byte pin) {
 	int tmp;
 
 	tmp = analogRead(pin);
@@ -322,7 +339,7 @@ float readGP2D12 (byte pin) {
 /*
     Convert a pulse width in ms to inches
 */
-long microsecondsToInches(long microseconds) {
+long microsecondsToInches (long microseconds) {
 	/*
 		According to Parallax's datasheet for the PING))), there are
 			73.746 microseconds per inch (i.e. sound travels at 1130 feet per
@@ -336,7 +353,7 @@ long microsecondsToInches(long microseconds) {
 /*
     Convert a pulse width in ms to a distance in cm
 */
-long microsecondsToCentimeters(long microseconds) {
+long microsecondsToCentimeters (long microseconds) {
 	/*
 		The speed of sound is 340 m/s or 29 microseconds per centimeter.
 
@@ -344,21 +361,6 @@ long microsecondsToCentimeters(long microseconds) {
 			object we take half of the distance travelled.
 	*/
 	return microseconds / 29 / 2;
-}
-
-void displayPING (void) {
-	int sensorNr;
-  
-	//	Display PING sensor readings (cm)
-	for (sensorNr = 0; sensorNr < MAX_PING; sensorNr++) {
-		Serial.print("Ping #");
-		Serial.print(sensorNr + 1);
-		Serial.print(" range = ");
-		Serial.print(ping[sensorNr]);
-		Serial.println(" cm");
-	}
- 
-	Serial.println("");
 }
 
 /*
@@ -683,10 +685,10 @@ void loop() {
 		Accelerometer and Gyro reactive behaviors HERE
 	*/
 
-	//	Get readings from all the GP2D12 Analog IR range sensors, if any, and store them
-	if (MAX_GP2D12 > 0) {
-		for (analogPin = 0; analogPin < MAX_GP2D12; analogPin++) { 
-			gp2d12[analogPin] = readGP2D12(analogPin);
+	//	Get readings from all the GP2Y0A21YK0F Analog IR range sensors, if any, and store them
+	if (MAX_IR > 0) {
+		for (analogPin = 0; analogPin < MAX_IR; analogPin++) { 
+			ir[analogPin] = readIR(analogPin);
 		}
 	}
 
