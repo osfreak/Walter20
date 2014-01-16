@@ -10,10 +10,12 @@ Directories:
 	ChipKit					ChipKit Pic32 development
 
 	General					General development
+		C++						C/C++ Development
 		Go						Go development
 		Python					Python development
 
 	Raspberry-Pi			Raspberry Pi
+		C++						C/C++ Development
 		Go						Go development
 		Python					Python development
 
@@ -21,3 +23,6 @@ Directories:
 		ArduinoDue				Arduino Due development
 		Linux					Linux
 			Ubuntu					Ubuntu Linux development
+				C++						C/C++ Development
+				Go						Go Development
+				Python					Python Development
