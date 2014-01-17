@@ -6,10 +6,13 @@
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
 
-					Added SoftwareSerial ports for the SSC-32 and RoboClaw 2x5 controllers
+					Added SoftwareSerial ports for the SSC-32 and RoboClaw 2x5 controllers;
+						defined a Motor struct to hold information about motors; added motor
+						definitions and initialization; modified moveServoPw() and moveServoDegrees()
+						to work with a SoftwareSerial port.
 
 	Dependencies:	Adafruit libraries:
-						LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
+						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
 
 					Hybotics libraries:
 						BMP180 (modified from Adafruit's BMP085 library)
@@ -88,7 +91,7 @@ Adafruit_LSM303_Mag_Unified compass = Adafruit_LSM303_Mag_Unified(10003);
 Adafruit_L3GD20 gyro;
 
 Adafruit_TCS34725 color = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
-Adafruit_TMP006 heat;
+Adafruit_TMP006 heat = Adafruit_TMP006();
 RTC_DS1307 clock;
 
 /*
@@ -611,7 +614,7 @@ void wireReceiveData (int nrBytesRead) {
 
 }
 
-void setup() {
+void setup () {
 	uint8_t nrDisp;
   
 	//  Initialize serial port communication
@@ -660,6 +663,18 @@ void setup() {
 		Serial.print("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
 		while(1);
 	}
+	
+	//	Initialize the TMP006 heat sensor
+	if (! heat.begin()) {
+		Serial.print("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
+		while(1);
+	}
+	
+	//	Initialize the TCS34725 color sensor
+	if (! color.begin()) {
+		Serial.print("There was a problem initializing the TCS34725 color sensor .. check your wiring or I2C ADDR!");
+		while(1);
+	}
 
 	//	Check to be sure the RTC is running
 	if (! clock.isrunning()) {
@@ -674,7 +689,7 @@ void setup() {
 //	moveServoDegrees(ssc32, &tiltS, moveDegrees, moveSpeed, moveTime, true);
 }
 
-void loop() {
+void loop () {
 	DateTime now = clock.now();
 
 	byte error = 0;
@@ -753,7 +768,7 @@ void loop() {
 	//	Get readings from all the Parallax PING Ultrasonic range sensors, if any, and store them
 	if (MAX_NUMBER_PING > 0) {
 		for (digitalPin = 0; digitalPin < MAX_NUMBER_PING; digitalPin++) {
-			ping[digitalPin] = readPING(digitalPin + DIGITAL_PIN_BASE, false);
+			ping[digitalPin] = readPING(digitalPin + PING_PIN_BASE, false);
 		}
 	}
 

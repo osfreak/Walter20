@@ -30,20 +30,20 @@
 /*
 	Sensor settings
 */
-#define	ANALOG_PIN_BASE					0
-#define	DIGITAL_PIN_BASE				6
+#define	IR_PIN_BASE						0
+#define	PING_PIN_BASE					6
 
-#define	MAX_NUMBER_PING					3
+#define	MAX_NUMBER_PING					1
 
-#define	PING_FRONT_LEFT					0
-#define	PING_FRONT_CENTER				1
+#define	PING_FRONT_CENTER				0
+#define	PING_FRONT_LEFT					1
 #define	PING_FRONT_RIGHT				2
 
 #define	MAX_NUMBER_IR					1
 
 #define	IR_FRONT_CENTER					0
-#define	IR_BACK_LEFT					1
-#define	IR_BACK_CENTER					2
+#define	IR_BACK_CENTER					1
+#define	IR_BACK_LEFT					2
 #define	IR_BACK_RIGHT					3
 
 //  For SoftI2CMaster
