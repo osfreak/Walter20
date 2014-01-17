@@ -113,7 +113,12 @@ SoftI2CMaster i2c = SoftI2CMaster(SOFT_I2C_SDA_PIN, SOFT_I2C_SCL_PIN, 0);
 	BMSerial Ports - Keep the hardware serial port for programming and debugging
 */
 BMSerial ssc32(SOFTSER_SSC32_RX_PIN, SOFTSER_SSC32_TX_PIN);
-BMSerial roboClaw(SOFTSER_ROBOCLAW_RX_PIN, SOFTSER_ROBOCLAW_TX_PIN);
+RoboClaw roboClaw(SOFTSER_ROBOCLAW_RX_PIN, SOFTSER_ROBOCLAW_TX_PIN);
+
+//	We only have one RoboClaw 2x5 right now
+uint8_t roboClawControllers = ROBOCLAW_CONTROLLERS - 1;
+uint8_t	roboClawBaseAddress = ROBOCLAW_SERIAL_BASE_ADDR;
+uint8_t roboClawAddress = ROBOCLAW_SERIAL_BASE_ADDR;
 
 /*
 	Initialize motors
@@ -621,10 +626,6 @@ void wireReceiveData (int nrBytesRead) {
 
 void setup () {
 	uint8_t nrDisp;
-  
-	//  Initialize serial port communication
-	console.begin(115200);
-	console.println("W.A.L.T.E.R. 2.0 Navigation");
 
 	//  Start up the Wire library as a slave device at address 0xE0
 	Wire.begin(NAV_I2C_ADDRESS);
@@ -636,25 +637,38 @@ void setup () {
 	//  Initialize the LED pin as an output.
 	pinMode(HEARTBEAT_LED, OUTPUT);
 
-	//	Initialize BMSerial ports
+	/*
+		Initialize BMSerial ports
+	*/
+
+	//  Initialize serial port communication (BMSerial)
+	console.begin(115200);
+	console.println("W.A.L.T.E.R. 2.0 Navigation");
+
+	//	Initialize the SSC-32 servo controller port
 	ssc32.begin(115200);
+	
+	//	Initialize the RoboClaw 2x5 motor controller port
 	roboClaw.begin(38400);
-  
-	/*  Initialize the accelerometer */
+
+	roboClaw.SetM1Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
+	roboClaw.SetM2Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
+      
+	//	Initialize the accelerometer
 	if (! accelerometer.begin()) {
 		/* There was a problem detecting the LSM303 ... check your connections */
 		console.println("Ooops, no LSM303 detected ... Check your wiring!");
 		while(1);
 	}
   
-	/*  Initialize the compass (magnetometer) sensor */
+	//	Initialize the magnetometer (compass) sensor
 	if (! compass.begin()) {
 		/*	There was a problem detecting the LSM303 ... check your connections */
 		console.println("Ooops, no LSM303 detected ... Check your wiring!");
 		while(1);
 	}
 
-	/*  Initialize and warn if we couldn't detect the gyroscope chip */
+	//	Initialize and warn if we couldn't detect the gyroscope chip
 	if (! gyro.begin(gyro.L3DS20_RANGE_250DPS)) {
 //	if (!gyro.begin(gyro.L3DS20_RANGE_500DPS)) {
 //	if (!gyro.begin(gyro.L3DS20_RANGE_2000DPS)) {
@@ -695,6 +709,7 @@ void setup () {
 }
 
 void loop () {
+	//	The current date and time from the DS1307 real time clock
 	DateTime now = clock.now();
 
 	byte error = 0;
@@ -703,8 +718,6 @@ void loop () {
 
 	uint8_t analogPin = 0;
 	uint8_t digitalPin = 0;
-	uint8_t displayNr = 0;
-	uint8_t hour = now.hour();
 
 	float celsius, fahrenheit, altitude;
 	float accelX, accelY, accelZ;
@@ -714,16 +727,6 @@ void loop () {
 	int gyroX, gyroY, gyroZ;
 
 	sensors_event_t accelEvent, compassEvent, tempEvent;
-  
-	uint16_t displayInt;
-
-	String displayString;
-	String timeString;
-	String currMonth = leftZeroPadString(String(now.month()), 2);
-	String currDay = leftZeroPadString(String(now.day()), 2);
-	String currYear = leftZeroPadString(String(now.year()), 4);
-	String currMinute = leftZeroPadString(String(now.minute()), 2);
-	String currSecond = leftZeroPadString(String(now.second()), 2);
 
 	/*
 		Code starts here
