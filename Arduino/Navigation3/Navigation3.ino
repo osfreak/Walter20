@@ -16,6 +16,8 @@
 					Converted to running the RoboClaw 2x5 motor controller in Packet Serial mode,
 						with all the goodies - encoders, speed, acceleration, and distance.
 
+					Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
+
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
 
