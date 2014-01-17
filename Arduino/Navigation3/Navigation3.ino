@@ -1,7 +1,7 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			16-Jan-2014
-	Version:		0.1.6 ALPHA
+	Date:			17-Jan-2014
+	Version:		0.1.7 ALPHA
 
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
@@ -17,6 +17,9 @@
 						with all the goodies - encoders, speed, acceleration, and distance.
 
 					Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
+					-------------------------------------------------------------------------------------
+					Added ColorSensor struct for RGB color sensor data; added code to read the TCS34725
+						RGB color and TMP006 heat sensors.
 
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
@@ -97,7 +100,7 @@ Adafruit_LSM303_Accel_Unified accelerometer = Adafruit_LSM303_Accel_Unified(1000
 Adafruit_LSM303_Mag_Unified compass = Adafruit_LSM303_Mag_Unified(10003);
 Adafruit_L3GD20 gyro;
 
-Adafruit_TCS34725 color = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_TMP006 heat = Adafruit_TMP006();
 RTC_DS1307 clock;
 
@@ -188,9 +191,49 @@ Servo tiltServo = {
 int ping[MAX_NUMBER_PING];
 float ir[MAX_NUMBER_IR];
 
+ColorSensor colorData = {
+	0,
+	0,
+	0,
+	0,
+	0
+};
+
+HeatSensor heatData = {
+	0.0,
+	0.0
+};
+
 /*
 	Code starts here
 */
+
+/*
+    Convert a pulse width in ms to inches
+*/
+long microsecondsToInches (long microseconds) {
+	/*
+		According to Parallax's datasheet for the PING))), there are
+			73.746 microseconds per inch (i.e. sound travels at 1130 feet per
+			second).  This gives the distance travelled by the ping, outbound
+			and return, so we divide by 2 to get the distance of the obstacle.
+		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
+	*/
+	return microseconds / 74 / 2;
+}
+
+/*
+    Convert a pulse width in ms to a distance in cm
+*/
+long microsecondsToCentimeters (long microseconds) {
+	/*
+		The speed of sound is 340 m/s or 29 microseconds per centimeter.
+
+		The ping travels out and back, so to find the distance of the
+			object we take half of the distance travelled.
+	*/
+	return microseconds / 29 / 2;
+}
 
 /*
     Left zero pad a numeric string
@@ -227,11 +270,53 @@ String trimTrailingZeros (String st) {
 	return newStr;
 }
 
+/*
+	Convert a temperature in Celsius to Fahrenheit
+*/
 float tempFahrenheit (float celsius) {
 	return (celsius * 1.8) + 32;
 }
 
-void displayRoboClawEncoderSpeed (Motor *leftMotor, Motor *rightMotor) {
+/*
+	Display TCS34725 color sensor readings
+*/
+void displayColorSensorReadings (ColorSensor *colorData) {
+	console.print("Color Temperature: ");
+	console.print(colorData->colorTemp, DEC);
+	console.print(" K - ");
+	console.print("Lux: ");
+	console.print(colorData->lux, DEC);
+	console.print(" - ");
+	console.print("Red: ");
+	console.print(colorData->red, DEC);
+	console.print(" ");
+	console.print("Green: ");
+	console.print(colorData->green, DEC);
+	console.print(" ");
+	console.print("Blue: ");
+	console.print(colorData->blue, DEC);
+	console.print(" ");
+	console.print("C: ");
+	console.print(colorData->c, DEC);
+	console.println();
+}
+
+/*
+	Display the TMP006 heat sensor readings
+*/
+void displayHeatSensorReadings (HeatSensor *heatData) {
+	console.print("Object Temperature: ");
+	console.print(heatData->objectTemp);
+	console.println("*C");
+	console.print("Die Temperature: ");
+	console.print(heatData->dieTemp);
+	console.println("*C");
+}
+
+/*
+	Display data from the RoboClaw 2x5 motor controller
+*/
+void displayRoboClawEncoderSpeedDistance (Motor *leftMotor, Motor *rightMotor) {
 	uint8_t roboClawStatus;
 	bool roboClawValid;
 
@@ -299,6 +384,10 @@ void displayIR (void) {
 void displayPING (void) {
 	int sensorNr;
   
+	console.println("------------------------------------");
+	console.println("PING Ultrasonic Sensor readings");
+	console.println("------------------------------------");
+  
 	//	Display PING sensor readings (cm)
 	for (sensorNr = 0; sensorNr < MAX_NUMBER_PING; sensorNr++) {
 		console.print("Ping #");
@@ -343,8 +432,8 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 }
 
 /* 
-	Function that reads a value from GP2Y0A21YK0F infrared distance sensor and returns a
-		value in centimeters.
+	Function to read a value from a GP2Y0A21YK0F infrared distance sensor and return a
+		distance value in centimeters.
 
 	This sensor should be used with a refresh rate of 36ms or greater.
 
@@ -352,7 +441,7 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 
 	float readIR(byte pin)
 
-	It can return -1 if something gone wrong.
+	It can return -1 if something has gone wrong.
 
 	TODO: Make several readings over a time period, and average them
 		for the final reading.
@@ -367,33 +456,6 @@ float readIR (byte pin) {
 	} else {
 		return (6787.0 /((float)tmp - 3.0)) - 4.0;  // Distance in cm
 	}
-}
-
-/*
-    Convert a pulse width in ms to inches
-*/
-long microsecondsToInches (long microseconds) {
-	/*
-		According to Parallax's datasheet for the PING))), there are
-			73.746 microseconds per inch (i.e. sound travels at 1130 feet per
-			second).  This gives the distance travelled by the ping, outbound
-			and return, so we divide by 2 to get the distance of the obstacle.
-		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
-	*/
-	return microseconds / 74 / 2;
-}
-
-/*
-    Convert a pulse width in ms to a distance in cm
-*/
-long microsecondsToCentimeters (long microseconds) {
-	/*
-		The speed of sound is 340 m/s or 29 microseconds per centimeter.
-
-		The ping travels out and back, so to find the distance of the
-			object we take half of the distance travelled.
-	*/
-	return microseconds / 29 / 2;
 }
 
 /*
@@ -613,7 +675,7 @@ void setup () {
 	roboClaw.SetM1Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
 	roboClaw.SetM2Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
 
-	displayRoboClawEncoderSpeed(&leftMotor, &rightMotor);
+	displayRoboClawEncoderSpeedDistance(&leftMotor, &rightMotor);
 
 	//	Initialize the accelerometer
 	if (! accelerometer.begin()) {
@@ -651,7 +713,7 @@ void setup () {
 	}
 	
 	//	Initialize the TCS34725 color sensor
-	if (! color.begin()) {
+	if (! rgbColor.begin()) {
 		console.print("There was a problem initializing the TCS34725 color sensor .. check your wiring or I2C ADDR!");
 		while(1);
 	}
@@ -779,6 +841,19 @@ void loop () {
 		altitude = temperature.pressureToAltitude(seaLevelPressure, tempEvent.pressure, celsius); 
 	}
 
+	/*
+		Read the TCS34725 RGB color sensor
+	*/
+	rgbColor.getRawData(&colorData.red, &colorData.green, &colorData.blue, &colorData.c);
+	colorData.colorTemp = rgbColor.calculateColorTemperature(colorData.red, colorData.green, colorData.blue);
+	colorData.lux = rgbColor.calculateLux(colorData.red, colorData.green, colorData.blue);
+                    	
+	/*
+		Read the TMP006 heat sensor
+	*/
+	heatData.dieTemp = heat.readDieTempC();
+	heatData.objectTemp = heat.readObjTempC();
+                                   
 	if (error != 0) {
 		processError(error);
 	}

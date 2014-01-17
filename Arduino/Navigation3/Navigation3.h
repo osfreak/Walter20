@@ -108,6 +108,22 @@
 
 #define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + SEVEN_SEG_NR_DISPLAYS
 
+struct ColorSensor {
+	uint16_t colorTemp;
+	uint16_t lux;
+
+	uint16_t red;
+	uint16_t green;
+	uint16_t blue;
+
+	uint16_t c;
+};
+
+struct HeatSensor {
+	float dieTemp;
+	float objectTemp;
+};
+
 struct Motor {
 	byte pin;
 
