@@ -64,12 +64,12 @@
 #define	SOFT_I2C_SDA_PIN				2
 #define	SOFT_I2C_SCL_PIN				3
 
-//	SoftwareSerial ports
-#define	SOFTSER_SSC32_RX_PIN			9
-#define	SOFTSER_SSC32_TX_PIN			10
+//	BMSerial ports
+#define	BMSERIAL_SSC32_RX_PIN			9
+#define	BMSERIAL_SSC32_TX_PIN			10
 
-#define	SOFTSER_ROBOCLAW_RX_PIN			11
-#define	SOFTSER_ROBOCLAW_TX_PIN			12
+#define	BMSERIAL_ROBOCLAW_RX_PIN		11
+#define	BMSERIAL_ROBOCLAW_TX_PIN		12
 
 /*
 	The following settings apply to the SSC-32 servo controller
@@ -113,8 +113,10 @@ struct Motor {
 
 	uint16_t pulseWidthMin;
 	uint16_t pulseWidthMax;
+	uint16_t pulseWidthAdjust;
 
-	uint8_t speed;
+	uint32_t encoder;
+	uint32_t speed;
 	boolean forward;
 
 	long distance;

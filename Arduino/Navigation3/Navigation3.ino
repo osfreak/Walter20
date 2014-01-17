@@ -115,8 +115,8 @@ SoftI2CMaster i2c = SoftI2CMaster(SOFT_I2C_SDA_PIN, SOFT_I2C_SCL_PIN, 0);
 /*
 	BMSerial Ports - Keep the hardware serial port for programming and debugging
 */
-BMSerial ssc32(SOFTSER_SSC32_RX_PIN, SOFTSER_SSC32_TX_PIN);
-RoboClaw roboClaw(SOFTSER_ROBOCLAW_RX_PIN, SOFTSER_ROBOCLAW_TX_PIN);
+BMSerial ssc32(BMSERIAL_SSC32_RX_PIN, BMSERIAL_SSC32_TX_PIN);
+RoboClaw roboClaw(BMSERIAL_ROBOCLAW_RX_PIN, BMSERIAL_ROBOCLAW_TX_PIN);
 
 //	We only have one RoboClaw 2x5 right now
 uint8_t roboClawControllers = ROBOCLAW_CONTROLLERS - 1;
@@ -126,24 +126,35 @@ uint8_t roboClawAddress = ROBOCLAW_SERIAL_BASE_ADDR;
 /*
 	Initialize motors
 */
+
+//	RoboClaw 2x5 motor M1
 Motor leftMotor = {
+	//	These four parameters are for PWM (R/C) control modes
 	SERVO_MOTOR_LEFT_PIN,
 	SERVO_MOTOR_LEFT_MIN,
 	SERVO_MOTOR_LEFT_MAX,
-	0,
-	true,
-	0,
-	0
+	SERVO_MOTOR_LEFT_ADJUST,
+
+	0,								//	Motor Encoder value
+	0,								//	Motor Speed
+	true,							//	Motor direction: Forward = true, Reverse = false
+	0,								//	Distance traveled
+	0								//	Encoder ticks
 };
-                            
+
+//	RoboClaw 2x5 motor M2
 Motor rightMotor = {
+	//	These four parameters are for PWM (R/C) control modes
 	SERVO_MOTOR_RIGHT_PIN,
 	SERVO_MOTOR_RIGHT_MIN,
 	SERVO_MOTOR_RIGHT_MAX,
-	0,
-	true,
-	0,
-	0
+	SERVO_MOTOR_RIGHT_ADJUST,
+
+	0,								//	Motor Encoder value
+	0,								//	Motor Speed
+	true,							//	Motor direction: Forward = true, Reverse = false
+	0,								//	Distance traveled
+	0								//	Encoder ticks
 };
                             
 /*
@@ -175,105 +186,9 @@ Servo tiltServo = {
 int ping[MAX_NUMBER_PING];
 float ir[MAX_NUMBER_IR];
 
-static const uint8_t PROGMEM
-	hpa_bmp[] = {
-		B10001110,
-		B10001001,
-		B11101110,
-		B10101000,
-		B00000100,
-		B00001010,
-		B00011111,
-		B00010001
-	},
-
-	c_bmp[] = {
-		B01110000,
-		B10001000,
-		B10000000,
-		B10001000,
-		B01110000,
-		B00000000,
-		B00000000,
-		B00000000
-	},
-
-	f_bmp[] = {
-		B11111000,
-		B10000000,
-		B11100000,
-		B10000000,
-		B10000000,
-		B00000000,
-		B00000000,
-		B00000000
-	},
-
-	m_bmp[] = {
-		B00000000,
-		B00000000,
-		B00000000,
-		B00000000,
-		B11101110,
-		B10111010,
-		B10010010,
-		B10000010
-	},
-
-	date_bmp[] = {
-		B10110110,
-		B01001001,
-		B01001001,
-		B00000100,
-		B00000100,
-		B01111100,
-		B10000100,
-		B01111100
-	},
-
-	year_bmp[] = {
-		B00000000,
-		B10001000,
-		B10001000,
-		B01110000,
-		B00101011,
-		B00101100,
-		B00101000,
-		B00000000
-	},
-
-	am_bmp[] = {
-		B01110000,
-		B10001010,
-		B10001010,
-		B01110100,
-		B00110110,
-		B01001001,
-		B01001001,
-		B01001001
-	},
-
-	pm_bmp[] = {
-		B01111100,
-		B10000010,
-		B11111100,
-		B10000000,
-		B10110110,
-		B01001001,
-		B01001001,
-		B01001001
-	},
-
-	allon_bmp[] = {
-		B11111111,
-		B11111111,
-		B11111111,
-		B11111111,
-		B11111111,
-		B11111111,
-		B11111111,
-		B11111111
-	};
+/*
+	Code starts here
+*/
 
 /*
     Left zero pad a numeric string
@@ -312,6 +227,47 @@ String trimTrailingZeros (String st) {
 
 float tempFahrenheit (float celsius) {
 	return (celsius * 1.8) + 32;
+}
+
+void displayRoboClawEncoderSpeed (Motor *leftMotor, Motor *rightMotor) {
+	uint8_t roboClawStatus;
+	bool roboClawValid;
+
+	leftMotor->encoder = roboClaw.ReadEncM1(roboClawAddress, &roboClawStatus, &roboClawValid);
+	
+    if (roboClawValid) {
+		console.print("Left Motor Encoder = ");
+		console.print(leftMotor->encoder, DEC);
+		console.print(", Status =  ");
+		console.print(roboClawStatus, HEX);
+		console.println();
+	}
+
+	leftMotor->speed = roboClaw.ReadSpeedM1(roboClawAddress, &roboClawStatus, &roboClawValid);
+
+	if (roboClawValid) {
+		console.print("Left Motor Speed = ");
+		console.print(leftMotor->speed, DEC);
+		console.println();
+	}
+
+	rightMotor->encoder = roboClaw.ReadEncM2(roboClawAddress, &roboClawStatus, &roboClawValid);
+
+	if (roboClawValid) {
+		console.print("Right Motor Encoder = ");
+		console.print(rightMotor->encoder, DEC);
+		console.print(", Status = ");
+		console.print(roboClawStatus, HEX);
+		console.println();
+	}
+
+	rightMotor->speed = roboClaw.ReadSpeedM2(roboClawAddress, &roboClawStatus, &roboClawValid);
+
+	if (roboClawValid) {
+		console.print("Right Motor Speed = ");
+		console.print(rightMotor->speed, DEC);
+		console.println();
+	}
 }
 
 /*
@@ -516,14 +472,14 @@ void pulseDigital(int pin, int duration) {
 /*
     Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use BMSerial
 */
-void moveServoPw (BMSerial port, Servo *servo, int servoPosition, int moveSpeed, int moveTime, boolean term) {
+void moveServoPw (BMSerial *port, Servo *servo, int servoPosition, int moveSpeed, int moveTime, boolean term) {
 	servo->error = 0;
   
 	if ((servoPosition >= servo->minPulse) && (servoPosition <= servo->maxPulse)) {
-		port.print("#");
-		port.print(servo->pin);
-		port.print(" P");
-		port.print(servoPosition + servo->offset);
+		port->print("#");
+		port->print(servo->pin);
+		port->print(" P");
+		port->print(servoPosition + servo->offset);
 
 		servo->msPulse = servoPosition;
 		servo->angle = ((servoPosition - SERVO_CENTER_MS) / 10);
@@ -538,18 +494,18 @@ void moveServoPw (BMSerial port, Servo *servo, int servoPosition, int moveSpeed,
 	if (servo->error == 0) {
 		//  Add servo move speed
 		if (moveSpeed != 0) {
-			port.print(" S");
-			port.print(moveSpeed);
+			port->print(" S");
+			port->print(moveSpeed);
 		}
     
 		//  Terminate the command
 		if (term) {
 			if (moveTime != 0) {
-				port.print(" T");
-				port.print(moveTime);
+				port->print(" T");
+				port->print(moveTime);
 			}
 
-			port.println();
+			port->println();
 		}
   	}
 }
@@ -557,7 +513,7 @@ void moveServoPw (BMSerial port, Servo *servo, int servoPosition, int moveSpeed,
 /*
     Move a servo by degrees (-90 to 90) or (0 - 180) - Modified to use BMSerial
 */
-void moveServoDegrees (BMSerial port, Servo *servo, int servoDegrees, int moveSpeed, int moveTime, boolean term) {
+void moveServoDegrees (BMSerial *port, Servo *servo, int servoDegrees, int moveSpeed, int moveTime, boolean term) {
 	int servoPulse = SERVO_CENTER_MS + servo->offset;
 
 	servo->error = 0;
@@ -570,10 +526,10 @@ void moveServoDegrees (BMSerial port, Servo *servo, int servoDegrees, int moveSp
 	}
 
 	if ((servoPulse >= servo->minPulse) && (servoPulse <= servo->maxPulse)) {
-		port.print("#");
-		port.print(servo->pin);
-		port.print(" P");
-		port.print(servoPulse);
+		port->print("#");
+		port->print(servo->pin);
+		port->print(" P");
+		port->print(servoPulse);
 
 		servo->msPulse = (servoDegrees * 10) + SERVO_CENTER_MS;
 		servo->angle = servoDegrees;
@@ -588,18 +544,18 @@ void moveServoDegrees (BMSerial port, Servo *servo, int servoDegrees, int moveSp
 	if (servo->error == 0) {
 		//  Add servo move speed
 		if (moveSpeed != 0) {
-			port.print(" S");
-			port.print(moveSpeed);
+			port->print(" S");
+			port->print(moveSpeed);
 		}
     
 		//  Terminate the command
 		if (term) {
 			if (moveTime != 0) {
-				port.print(" T");
-				port.print(moveTime);
+				port->print(" T");
+				port->print(moveTime);
 			}
       
-			port.println();
+			port->println();
 		}
 	}
 }
@@ -628,8 +584,6 @@ void wireReceiveData (int nrBytesRead) {
 }
 
 void setup () {
-	uint8_t nrDisp;
-
 	//  Start up the Wire library as a slave device at address 0xE0
 	Wire.begin(NAV_I2C_ADDRESS);
 
@@ -643,7 +597,6 @@ void setup () {
 	/*
 		Initialize BMSerial ports
 	*/
-
 	//  Initialize serial port communication (BMSerial)
 	console.begin(115200);
 	console.println("W.A.L.T.E.R. 2.0 Navigation");
@@ -654,9 +607,12 @@ void setup () {
 	//	Initialize the RoboClaw 2x5 motor controller port
 	roboClaw.begin(38400);
 
+	//	Set the RoboClaw motor constants
 	roboClaw.SetM1Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
 	roboClaw.SetM2Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
-      
+
+	displayRoboClawEncoderSpeed(&leftMotor, &rightMotor);
+
 	//	Initialize the accelerometer
 	if (! accelerometer.begin()) {
 		/* There was a problem detecting the LSM303 ... check your connections */
@@ -705,16 +661,19 @@ void setup () {
 	}
   
 	//  Put the front pan/tilt at home position
-	moveServoPw(ssc32, &panServo, SERVO_CENTER_MS, 0, 0, false);
-	moveServoPw(ssc32, &tiltServo, SERVO_CENTER_MS, 0, 0, true);
-//	moveServoDegrees(ssc32, &panS, moveDegrees, moveSpeed, moveTime, false);
-//	moveServoDegrees(ssc32, &tiltS, moveDegrees, moveSpeed, moveTime, true);
+	moveServoPw(&ssc32, &panServo, SERVO_CENTER_MS, 0, 0, false);
+	moveServoPw(&ssc32, &tiltServo, SERVO_CENTER_MS, 0, 0, true);
+//	moveServoDegrees(&ssc32, &panS, moveDegrees, moveSpeed, moveTime, false);
+//	moveServoDegrees(&ssc32, &tiltS, moveDegrees, moveSpeed, moveTime, true);
 }
 
 void loop () {
 	//	The current date and time from the DS1307 real time clock
 	DateTime now = clock.now();
 
+	uint8_t roboClawStatus;
+	bool roboClawValid;
+    
 	byte error = 0;
 
 	boolean amTime;
@@ -785,6 +744,10 @@ void loop () {
 
 	/*
 		Distance related reactive behaviors HERE
+	*/
+
+	/*
+		Read the RoboClaw 2x5 motor controller encoders
 	*/
 
 	//	Get a new sensor event
