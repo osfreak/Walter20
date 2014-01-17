@@ -1,10 +1,12 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			15-Jan-2014
-	Version:		0.1.5 ALPHA
+	Date:			16-Jan-2014
+	Version:		0.1.6 ALPHA
 
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
+
+					Added SoftwareSerial ports for the SSC-32 and RoboClaw 2x5 controllers
 
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
@@ -42,6 +44,7 @@
 /*
 	Additional libraries
 */
+#include <SoftwareSerial.h>
 #include <SoftI2CMaster.h>
 
 #include "Navigation2.h"
@@ -97,6 +100,9 @@ RTC_DS1307 clock;
       uses the main I2C bus to communicate with us.
 */
 SoftI2CMaster i2c = SoftI2CMaster(SOFT_I2C_SDA_PIN, SOFT_I2C_SCL_PIN, 0);
+
+SoftwareSerial ssc32 = SoftwareSerial(SOFTSER_SSC32_RX_PIN, SOFTSER_SSC32_TX_PIN);
+SoftwareSerial roboclaw = SoftwareSerial(SOFTSER_ROBOCLAW_RX_PIN, SOFTSER_ROBOCLAW_TX_PIN);
 
 /*
     Initialize servos
@@ -568,6 +574,10 @@ void setup() {
 
 	//  Initialize the LED pin as an output.
 	pinMode(HEARTBEAT_LED, OUTPUT);
+
+	//	Initialize SoftwareSerial ports
+	ssc32.begin(115200);
+	roboclaw.begin(38400);
   
 	/*  Initialize the accelerometer */
 	if (! accelerometer.begin()) {

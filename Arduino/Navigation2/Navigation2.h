@@ -1,11 +1,9 @@
 /*
 	Program:      	W.A.L.T.E.R. 2.0, Main navigation, and reactive behaviors, header file
-	Date:         	15-Jan-2014
-	Version:      	0.1.5 ALPHA
+	Date:         	16-Jan-2014
+	Version:      	0.1.6 ALPHA
 
-	Purpose:      	Added new displaySoundDirection() routine. I've started to add some
-						error handling code, as well as code to handle Wire (I2C) slave
-						operation.
+	Purpose:		Added definitions for SoftwareSerial ports for the SSC-32 and RoboClaw 2x5
 
 	Dependencies:	Adafruit libraries:
                   		LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
@@ -51,6 +49,13 @@
 //  For SoftI2CMaster
 #define	SOFT_I2C_SDA_PIN				2
 #define	SOFT_I2C_SCL_PIN				3
+
+//	SoftwareSerial ports
+#define	SOFTSER_SSC32_RX_PIN			9
+#define	SOFTSER_SSC32_TX_PIN			10
+
+#define	SOFTSER_ROBOCLAW_RX_PIN			11
+#define	SOFTSER_ROBOCLAW_TX_PIN			12
 
 /*
 	The following settings apply to the SSC-32 servo controller
