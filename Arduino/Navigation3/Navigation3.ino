@@ -13,6 +13,9 @@
 
 					Converted to using a BMSerial() port for the hardware serial console port
 
+					Converted to running the RoboClaw 2x5 motor controller in Packet Serial mode,
+						with all the goodies - encoders, speed, acceleration, and distance.
+
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
 
