@@ -5,6 +5,8 @@
 
 	Purpose:		Added definitions for SoftwareSerial ports for the SSC-32 and RoboClaw 2x5
 
+					Added constants for RoboClaw motor controllers
+
 	Dependencies:	Adafruit libraries:
                   		LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
 
@@ -23,6 +25,9 @@
 #define	__NAVIGATION3_H__
 
 #define	NAV_I2C_ADDRESS					0x50
+
+#define	HARDWARE_SERIAL_RX_PIN			0
+#define	HARDWARE_SERIAL_TX_PIN			1
 
 #define	SPEAKER_OUT						5
 #define	HEARTBEAT_LED       	        13
@@ -45,6 +50,15 @@
 #define	IR_BACK_CENTER					1
 #define	IR_BACK_LEFT					2
 #define	IR_BACK_RIGHT					3
+
+//	RoboClaw 2x5 Motor Controller Packet Serial constants
+#define	ROBOCLAW_CONTROLLERS			1
+#define	ROBOCLAW_SERIAL_BASE_ADDR		0x80
+
+#define	ROBOCLAW_KP						0x00010000
+#define	ROBOCLAW_KI						0x00008000
+#define	ROBOCLAW_KD						0x00004000
+#define	ROBOCLAW_QPPS					44000
 
 //  For SoftI2CMaster
 #define	SOFT_I2C_SDA_PIN				2
@@ -88,10 +102,11 @@
 	End of SSC-32 definitions
 */
 
-#define	NUMBER_DISPLAYS					1
+//	Display constants
+#define	SEVEN_SEG_NR_DISPLAYS			1
 #define	SEVEN_SEG_BASE_ADDR				0x70
 
-#define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + NUMBER_DISPLAYS
+#define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + SEVEN_SEG_NR_DISPLAYS
 
 struct Motor {
 	byte pin;

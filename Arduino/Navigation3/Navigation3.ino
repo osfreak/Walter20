@@ -6,10 +6,12 @@
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
 
-					Added SoftwareSerial ports for the SSC-32 and RoboClaw 2x5 controllers;
+					Added BMSerial ports for the SSC-32 and RoboClaw 2x5 controllers;
 						defined a Motor struct to hold information about motors; added motor
 						definitions and initialization; modified moveServoPw() and moveServoDegrees()
-						to work with a SoftwareSerial port.
+						to work with a BMSerial port.
+
+					Converted to using a BMSerial() port for the hardware serial console port
 
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
@@ -36,6 +38,7 @@
 #include <KalmanFilter.h>
 
 #include <RTClib.h>
+#include <BMSerial.h>
 #include <RoboClaw.h>
 
 /*
@@ -47,7 +50,6 @@
 /*
 	Additional libraries
 */
-#include <SoftwareSerial.h>
 #include <SoftI2CMaster.h>
 
 #include "Navigation3.h"
@@ -98,6 +100,9 @@ RTC_DS1307 clock;
     Initialize global variables
 */
 
+//	Hardware Serial console (replaces Serial.* routines)
+BMSerial console(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
+
 /*
     We have to use a software I2C connection, because the master controller
       uses the main I2C bus to communicate with us.
@@ -105,10 +110,10 @@ RTC_DS1307 clock;
 SoftI2CMaster i2c = SoftI2CMaster(SOFT_I2C_SDA_PIN, SOFT_I2C_SCL_PIN, 0);
 
 /*
-	SoftwareSerial Ports - Keep the hardware serial port for programming and debugging
+	BMSerial Ports - Keep the hardware serial port for programming and debugging
 */
-SoftwareSerial ssc32 = SoftwareSerial(SOFTSER_SSC32_RX_PIN, SOFTSER_SSC32_TX_PIN);
-SoftwareSerial roboClaw = SoftwareSerial(SOFTSER_ROBOCLAW_RX_PIN, SOFTSER_ROBOCLAW_TX_PIN);
+BMSerial ssc32(SOFTSER_SSC32_RX_PIN, SOFTSER_SSC32_TX_PIN);
+BMSerial roboClaw(SOFTSER_ROBOCLAW_RX_PIN, SOFTSER_ROBOCLAW_TX_PIN);
 
 /*
 	Initialize motors
@@ -307,19 +312,19 @@ float tempFahrenheit (float celsius) {
 void displayIR (void) {
 	int sensorNr;
   
-	Serial.println("------------------------------------");
-	Serial.println("IR Sensor readings");
-	Serial.println("------------------------------------");
+	console.println("------------------------------------");
+	console.println("IR Sensor readings");
+	console.println("------------------------------------");
 
 	for (sensorNr = 0; sensorNr < MAX_NUMBER_IR; sensorNr++) { 
-		Serial.print("IR #");
-		Serial.print(sensorNr + 1);
-		Serial.print(" range = ");
-		Serial.print(ir[sensorNr]);
-		Serial.println(" cm");
+		console.print("IR #");
+		console.print(sensorNr + 1);
+		console.print(" range = ");
+		console.print(ir[sensorNr]);
+		console.println(" cm");
 	}
 
-	Serial.println();  
+	console.println();  
 }
 
 /*
@@ -330,14 +335,14 @@ void displayPING (void) {
   
 	//	Display PING sensor readings (cm)
 	for (sensorNr = 0; sensorNr < MAX_NUMBER_PING; sensorNr++) {
-		Serial.print("Ping #");
-		Serial.print(sensorNr + 1);
-		Serial.print(" range = ");
-		Serial.print(ping[sensorNr]);
-		Serial.println(" cm");
+		console.print("Ping #");
+		console.print(sensorNr + 1);
+		console.print(" range = ");
+		console.print(ping[sensorNr]);
+		console.println(" cm");
 	}
  
-	Serial.println("");
+	console.println("");
 }
 
 /*
@@ -345,30 +350,30 @@ void displayPING (void) {
 */
 void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEvent, int gyroX, int gyroY, int gyroZ) {
 	//	Accelerometer readings
-	Serial.print("Accelerometer: X = ");
-	Serial.print(accelEvent->acceleration.x);
-	Serial.print(", Y = ");
-	Serial.print(accelEvent->acceleration.y);
-	Serial.print(", Z = ");
-	Serial.println(accelEvent->acceleration.z);
+	console.print("Accelerometer: X = ");
+	console.print(accelEvent->acceleration.x);
+	console.print(", Y = ");
+	console.print(accelEvent->acceleration.y);
+	console.print(", Z = ");
+	console.println(accelEvent->acceleration.z);
 
 	//	Magnetometer (Compass) readings
-	Serial.print("Magnetometer (Compass): X = ");
-	Serial.print(compassEvent->magnetic.x);
-	Serial.print(", Y = ");
-	Serial.print(compassEvent->magnetic.y);
-	Serial.print(", Z = ");
-	Serial.println(compassEvent->magnetic.z);
+	console.print("Magnetometer (Compass): X = ");
+	console.print(compassEvent->magnetic.x);
+	console.print(", Y = ");
+	console.print(compassEvent->magnetic.y);
+	console.print(", Z = ");
+	console.println(compassEvent->magnetic.z);
 
 	//	Gyro readings
-	Serial.print("Gyro: X = ");
-	Serial.print(gyroX);
-	Serial.print(", Y = ");
-	Serial.print(gyroY);
-	Serial.print(", Z = ");
-	Serial.println(gyroZ);
+	console.print("Gyro: X = ");
+	console.print(gyroX);
+	console.print(", Y = ");
+	console.print(gyroY);
+	console.print(", Z = ");
+	console.println(gyroZ);
 	
-	Serial.println();
+	console.println();
 }
 
 /* 
@@ -501,9 +506,9 @@ void pulseDigital(int pin, int duration) {
 }
 
 /*
-    Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use SoftwareSerial
+    Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use BMSerial
 */
-void moveServoPw (SoftwareSerial port, Servo *servo, int servoPosition, int moveSpeed, int moveTime, boolean term) {
+void moveServoPw (BMSerial port, Servo *servo, int servoPosition, int moveSpeed, int moveTime, boolean term) {
 	servo->error = 0;
   
 	if ((servoPosition >= servo->minPulse) && (servoPosition <= servo->maxPulse)) {
@@ -542,9 +547,9 @@ void moveServoPw (SoftwareSerial port, Servo *servo, int servoPosition, int move
 }
 
 /*
-    Move a servo by degrees (-90 to 90) or (0 - 180) - Modified to use SoftwareSerial
+    Move a servo by degrees (-90 to 90) or (0 - 180) - Modified to use BMSerial
 */
-void moveServoDegrees (SoftwareSerial port, Servo *servo, int servoDegrees, int moveSpeed, int moveTime, boolean term) {
+void moveServoDegrees (BMSerial port, Servo *servo, int servoDegrees, int moveSpeed, int moveTime, boolean term) {
 	int servoPulse = SERVO_CENTER_MS + servo->offset;
 
 	servo->error = 0;
@@ -595,9 +600,9 @@ void moveServoDegrees (SoftwareSerial port, Servo *servo, int servoDegrees, int 
     Process error conditions
 */
 void processError (byte err) {
-	Serial.print("Error: ");
-	Serial.print(err);
-	Serial.println("");
+	console.print("Error: ");
+	console.print(err);
+	console.println("");
 }
 
 /*
@@ -618,8 +623,8 @@ void setup () {
 	uint8_t nrDisp;
   
 	//  Initialize serial port communication
-	Serial.begin(115200);
-	Serial.println("W.A.L.T.E.R. 2.0 Navigation");
+	console.begin(115200);
+	console.println("W.A.L.T.E.R. 2.0 Navigation");
 
 	//  Start up the Wire library as a slave device at address 0xE0
 	Wire.begin(NAV_I2C_ADDRESS);
@@ -631,21 +636,21 @@ void setup () {
 	//  Initialize the LED pin as an output.
 	pinMode(HEARTBEAT_LED, OUTPUT);
 
-	//	Initialize SoftwareSerial ports
+	//	Initialize BMSerial ports
 	ssc32.begin(115200);
 	roboClaw.begin(38400);
   
 	/*  Initialize the accelerometer */
 	if (! accelerometer.begin()) {
 		/* There was a problem detecting the LSM303 ... check your connections */
-		Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+		console.println("Ooops, no LSM303 detected ... Check your wiring!");
 		while(1);
 	}
   
 	/*  Initialize the compass (magnetometer) sensor */
 	if (! compass.begin()) {
 		/*	There was a problem detecting the LSM303 ... check your connections */
-		Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+		console.println("Ooops, no LSM303 detected ... Check your wiring!");
 		while(1);
 	}
 
@@ -653,32 +658,32 @@ void setup () {
 	if (! gyro.begin(gyro.L3DS20_RANGE_250DPS)) {
 //	if (!gyro.begin(gyro.L3DS20_RANGE_500DPS)) {
 //	if (!gyro.begin(gyro.L3DS20_RANGE_2000DPS)) {
-		Serial.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
+		console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
 		while (1);
 	}
 
 	//	Initialize the BMP180 temperature sensor
 	if (! temperature.begin()) {
 		//  There was a problem detecting the BMP180 ... check your connections
-		Serial.print("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
+		console.print("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
 		while(1);
 	}
 	
 	//	Initialize the TMP006 heat sensor
 	if (! heat.begin()) {
-		Serial.print("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
+		console.print("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
 		while(1);
 	}
 	
 	//	Initialize the TCS34725 color sensor
 	if (! color.begin()) {
-		Serial.print("There was a problem initializing the TCS34725 color sensor .. check your wiring or I2C ADDR!");
+		console.print("There was a problem initializing the TCS34725 color sensor .. check your wiring or I2C ADDR!");
 		while(1);
 	}
 
 	//	Check to be sure the RTC is running
 	if (! clock.isrunning()) {
-		Serial.println("RTC is NOT running!");
+		console.println("RTC is NOT running!");
 		while(1);
 	}
   
