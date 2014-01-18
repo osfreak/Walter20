@@ -3,7 +3,7 @@ W.A.L.T.E.R. 2.0 Documentation
 
 My current Botboarduino pin allocations are:
 
-0, 1				--> Hardware serial for programming
+0, 1				--> Hardware serial port, for programming and wireless
 2, 3				--> Software I2C
 4					--> TCS34725 Color Sensor LED
 5					--> Speaker
