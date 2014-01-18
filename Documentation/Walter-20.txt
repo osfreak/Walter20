@@ -5,13 +5,12 @@ My current Botboarduino pin allocations are:
 
 0, 1				--> Hardware serial for programming
 2, 3				--> Software I2C
-4					--> Not yet allocated
+4					--> TCS34725 Color Sensor LED
 5					--> Speaker
 6, 7, 8				--> Parallax PING sensors
 9, 10				--> Software Serial for the SSC-32
 11, 12				--> Software Serial for the RoboClaw 2x5
 13					--> On board standard Arduino LED
-14, 15				--> Not yet allocated
 
 Analog 0, 1, 2, 3	--> Sharp IR Sensors
 Analog 4, 5			--> Hardware I2C

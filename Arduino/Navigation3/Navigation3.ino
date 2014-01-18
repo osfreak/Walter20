@@ -17,9 +17,13 @@
 						with all the goodies - encoders, speed, acceleration, and distance.
 
 					Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
+
 					-------------------------------------------------------------------------------------
+
 					Added ColorSensor struct for RGB color sensor data; added code to read the TCS34725
 						RGB color and TMP006 heat sensors.
+						
+					Added a control pin (COLOR_SENSOR_LED, pin 4) so the LED can be turned on and off.
 
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
@@ -657,6 +661,10 @@ void setup () {
 
 	//  Initialize the LED pin as an output.
 	pinMode(HEARTBEAT_LED, OUTPUT);
+
+	//	Initialize and turn off the TCS34725 RGB Color sensor's LED
+	pinMode(COLOR_SENSOR_LED, OUTPUT);
+	digitalWrite(COLOR_SENSOR_LED, LOW);
 
 	/*
 		Initialize BMSerial ports

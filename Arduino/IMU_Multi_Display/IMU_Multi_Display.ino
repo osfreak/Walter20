@@ -379,6 +379,10 @@ void setup() {
   //  Initialize serial port communication
   Serial.begin(115200);
   Serial.println("IMU Time/Temperature Test");
+  
+  //  Setup and turn off the Color sensor's LED
+  pinMode(COLOR_SENSOR_LED, OUTPUT);
+  digitalWrite(COLOR_SENSOR_LED, LOW);
 
   /*
       Multiple 7 segment displays will be supported.

@@ -37,21 +37,23 @@
 #ifndef	__IMU_MULTI_DISPLAY_H__
 #define	__IMU_MULTI_DISPLAY_H__
 
-#define	SPEAKER_OUT		        05
+#define COLOR_SENSOR_LED                4
+
+#define	SPEAKER_OUT		        5
 #define	HEARTBEAT_LED			13
 
-#define	NUMBER_DISPLAYS			01
+#define	NUMBER_DISPLAYS			1
 #define	SEVEN_SEG_BASE_ADDR		0x70
 
 #define	MATRIX_DISPLAY_ADDR		SEVEN_SEG_BASE_ADDR + NUMBER_DISPLAYS
 
 //  Sensor routine settings
-#define  ANALOG_PIN_BASE      	00
-#define  DIGITAL_PIN_BASE     	12
+#define  ANALOG_PIN_BASE      	      0
+#define  DIGITAL_PIN_BASE     	      12
 
 //  For SoftI2CMaster
-#define	SOFT_I2C_SDA_PIN		08
-#define	SOFT_I2C_SCL_PIN		09
+#define	SOFT_I2C_SDA_PIN		2
+#define	SOFT_I2C_SCL_PIN		3
 
 #define	MAX_VOLTS				5.0
 #define	MAX_STEPS				1024.0
