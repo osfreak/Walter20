@@ -1,7 +1,7 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			17-Jan-2014
-	Version:		0.1.7 ALPHA
+	Date:			18-Jan-2014
+	Version:		0.1.8 ALPHA
 
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
@@ -19,11 +19,23 @@
 					Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
 
 					-------------------------------------------------------------------------------------
-
+					v0.1.7:
 					Added ColorSensor struct for RGB color sensor data; added code to read the TCS34725
 						RGB color and TMP006 heat sensors.
 						
 					Added a control pin (COLOR_SENSOR_LED, pin 4) so the LED can be turned on and off.
+
+					-------------------------------------------------------------------------------------
+					v0.1.8:
+					Fixed a bug in readPING() - was not getting the duration, because code was in a comment.
+
+					Now displaying readings from all sensors in the main loop. RGB color and Heat sensors are
+						working. IMU seems to be working so far - still need to get useful information from it.
+
+					The SSC-32 doesn't seem to like SoftwareSerial ports.
+					
+					I'm thinking more seriously about moving to the Arduino Mega ADK board. There is only about
+						5Kb of program memory left, RAM is low, etc. I don't think I have a choice here.
 
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
@@ -284,24 +296,24 @@ float tempFahrenheit (float celsius) {
 }
 
 /*
-	Display TCS34725 color sensor readings
+	Display the TCS34725 RGB color sensor readings
 */
 void displayColorSensorReadings (ColorSensor *colorData) {
 	console.print("Color Temperature: ");
 	console.print(colorData->colorTemp, DEC);
-	console.print(" K - ");
+	console.print(" K, ");
 	console.print("Lux: ");
 	console.print(colorData->lux, DEC);
-	console.print(" - ");
+	console.print(", ");
 	console.print("Red: ");
 	console.print(colorData->red, DEC);
-	console.print(" ");
+	console.print(", ");
 	console.print("Green: ");
 	console.print(colorData->green, DEC);
-	console.print(" ");
+	console.print(", ");
 	console.print("Blue: ");
 	console.print(colorData->blue, DEC);
-	console.print(" ");
+	console.print(", ");
 	console.print("C: ");
 	console.print(colorData->c, DEC);
 	console.println();
@@ -313,18 +325,21 @@ void displayColorSensorReadings (ColorSensor *colorData) {
 void displayHeatSensorReadings (HeatSensor *heatData) {
 	console.print("Object Temperature: ");
 	console.print(heatData->objectTemp);
-	console.println("*C");
+	console.println(" C");
 	console.print("Die Temperature: ");
 	console.print(heatData->dieTemp);
-	console.println("*C");
+	console.println(" C");
 }
 
 /*
 	Display data from the RoboClaw 2x5 motor controller
 */
-void displayRoboClawEncoderSpeedDistance (Motor *leftMotor, Motor *rightMotor) {
+void displayRoboClawEncoderSpeedAccelDistance (Motor *leftMotor, Motor *rightMotor) {
 	uint8_t roboClawStatus;
 	bool roboClawValid;
+
+	console.println("RoboClaw 2x5 status:");
+	console.println();
 
 	leftMotor->encoder = roboClaw.ReadEncM1(roboClawAddress, &roboClawStatus, &roboClawValid);
 	
@@ -361,6 +376,8 @@ void displayRoboClawEncoderSpeedDistance (Motor *leftMotor, Motor *rightMotor) {
 		console.print(rightMotor->speed, DEC);
 		console.println();
 	}
+	
+	console.println("");
 }
 
 /*
@@ -409,7 +426,7 @@ void displayPING (void) {
 /*
 	Display the readings from the IMU (Accelerometer, Magnetometer [Compass], and Gyro
 */
-void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEvent, int gyroX, int gyroY, int gyroZ) {
+void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEvent, float celsius, float fahrenheit, int gyroX, int gyroY, int gyroZ) {
 	//	Accelerometer readings
 	console.print("Accelerometer: X = ");
 	console.print(accelEvent->acceleration.x);
@@ -433,6 +450,13 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.print(gyroY);
 	console.print(", Z = ");
 	console.println(gyroZ);
+
+	//	Temperature readings
+	console.print("Room Temperature = ");
+	console.print(fahrenheit);
+	console.print(" F, ");
+	console.print(celsius);
+	console.print(" C.");
 	
 	console.println();
 }
@@ -489,9 +513,10 @@ float readIR (byte pin) {
 	Modified 09-Aug-2013
 		by Dale Weber
 
-		Set units = true for inches, and false for cm
+		Set units = true for cm, and false for inches
 */
-int readPING (byte pingPin, boolean units) {
+int readPING (byte pingPin, boolean units=true) {
+	byte realPin = pingPin + PING_PIN_BASE;
 	long duration;
 	int result;
 
@@ -499,29 +524,28 @@ int readPING (byte pingPin, boolean units) {
 		The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
 		Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
 	*/
-	pinMode(pingPin, OUTPUT);
-	digitalWrite(pingPin, LOW);
+	pinMode(realPin, OUTPUT);
+	digitalWrite(realPin, LOW);
 	delayMicroseconds(2);
-	digitalWrite(pingPin, HIGH);
+	digitalWrite(realPin, HIGH);
 	delayMicroseconds(5);
-	digitalWrite(pingPin, LOW);
+	digitalWrite(realPin, LOW);
 
 	/*
 		The same pin is used to read the signal from the PING))): a HIGH
 		pulse whose duration is the time (in microseconds) from the sending
 		of the ping to the reception of its echo off of an object.
-
-		pinMode(pingPin, INPUT);
-		duration = pulseIn(pingPin, HIGH);
 	*/
+	pinMode(realPin, INPUT);
+	duration = pulseIn(realPin, HIGH);
 
-	//  Convert the time into a distance
+	//  Convert the duration into a distance
 	if (units) {
-		//  Return result in inches.
-		result = microsecondsToInches(duration);
-	} else {
 		//	Return result in cm
 		result = microsecondsToCentimeters(duration);
+	} else {
+		//  Return result in inches.
+		result = microsecondsToInches(duration);
 	}
  
 	delay(100);
@@ -685,7 +709,7 @@ void setup () {
 	roboClaw.SetM1Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
 	roboClaw.SetM2Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
 
-	displayRoboClawEncoderSpeedDistance(&leftMotor, &rightMotor);
+	displayRoboClawEncoderSpeedAccelDistance(&leftMotor, &rightMotor);
 
 	//	Initialize the accelerometer
 	if (! accelerometer.begin()) {
@@ -724,13 +748,13 @@ void setup () {
 	
 	//	Initialize the TCS34725 color sensor
 	if (! rgbColor.begin()) {
-		console.print("There was a problem initializing the TCS34725 color sensor .. check your wiring or I2C ADDR!");
+		console.print("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
 		while(1);
 	}
 
 	//	Check to be sure the RTC is running
 	if (! clock.isrunning()) {
-		console.println("RTC is NOT running!");
+		console.println("Real Time Clock is NOT running!");
 		while(1);
 	}
   
@@ -809,12 +833,16 @@ void loop () {
 		}
 	}
 
+	displayIR();
+
 	//	Get readings from all the Parallax PING Ultrasonic range sensors, if any, and store them
 	if (MAX_NUMBER_PING > 0) {
 		for (digitalPin = 0; digitalPin < MAX_NUMBER_PING; digitalPin++) {
-			ping[digitalPin] = readPING(digitalPin + PING_PIN_BASE, false);
+			ping[digitalPin] = readPING(digitalPin);
 		}
 	}
+
+	displayPING();
 
 	/*
 		Distance related reactive behaviors HERE
@@ -849,6 +877,8 @@ void loop () {
 
 		//	Convert the atmospheric pressure, SLP and temp to altitude in meters
 		altitude = temperature.pressureToAltitude(seaLevelPressure, tempEvent.pressure, celsius); 
+
+		displayIMUReadings(&accelEvent, &compassEvent, celsius, fahrenheit, gyroX, gyroY, gyroZ);
 	}
 
 	/*
@@ -857,12 +887,17 @@ void loop () {
 	rgbColor.getRawData(&colorData.red, &colorData.green, &colorData.blue, &colorData.c);
 	colorData.colorTemp = rgbColor.calculateColorTemperature(colorData.red, colorData.green, colorData.blue);
 	colorData.lux = rgbColor.calculateLux(colorData.red, colorData.green, colorData.blue);
+
+	displayColorSensorReadings(&colorData);
                     	
 	/*
 		Read the TMP006 heat sensor
 	*/
 	heatData.dieTemp = heat.readDieTempC();
 	heatData.objectTemp = heat.readObjTempC();
+	
+	displayHeatSensorReadings(&heatData);
+	console.println();
                                    
 	if (error != 0) {
 		processError(error);

@@ -97,7 +97,7 @@
 #define	SERVO_PAN_RIGHT_MAX				2400
 
 #define	SERVO_TILT_PIN					1
-#define	SERVO_TILT_ADJUST				-100
+#define	SERVO_TILT_ADJUST				-150
 #define	SERVO_TILT_DOWN_MAX				500
 #define	SERVO_TILT_UP_MAX				2000
 /*

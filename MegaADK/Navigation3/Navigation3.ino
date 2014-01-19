@@ -1,7 +1,7 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			17-Jan-2014
-	Version:		0.1.7 ALPHA
+	Date:			18-Jan-2014
+	Version:		0.1.8 ALPHA
 
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
@@ -19,11 +19,23 @@
 					Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
 
 					-------------------------------------------------------------------------------------
-
+					v0.1.7:
 					Added ColorSensor struct for RGB color sensor data; added code to read the TCS34725
 						RGB color and TMP006 heat sensors.
 						
 					Added a control pin (COLOR_SENSOR_LED, pin 4) so the LED can be turned on and off.
+
+					-------------------------------------------------------------------------------------
+					v0.1.8:
+					Fixed a bug in readPING() - was not getting the duration, because code was in a comment.
+
+					Now displaying readings from all sensors in the main loop. RGB color and Heat sensors are
+						working. IMU seems to be working so far - still need to get useful information from it.
+
+					The SSC-32 doesn't seem to like SoftwareSerial ports.
+					
+					I'm thinking more seriously about moving to the Arduino Mega ADK board. There is only about
+						5Kb of program memory left, RAM is low, etc. I don't think I have a choice here.
 
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
@@ -113,7 +125,7 @@ RTC_DS1307 clock;
 */
 
 //	Hardware Serial console (replaces Serial.* routines)
-BMSerial console(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
+BMSerial console = BMSerial(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
 
 /*
     We have to use a software I2C connection, because the master controller
@@ -124,8 +136,8 @@ SoftI2CMaster i2c = SoftI2CMaster(SOFT_I2C_SDA_PIN, SOFT_I2C_SCL_PIN, 0);
 /*
 	BMSerial Ports - Keep the hardware serial port for programming and debugging
 */
-BMSerial ssc32(BMSERIAL_SSC32_RX_PIN, BMSERIAL_SSC32_TX_PIN);
-RoboClaw roboClaw(BMSERIAL_ROBOCLAW_RX_PIN, BMSERIAL_ROBOCLAW_TX_PIN);
+BMSerial ssc32 = BMSerial(BMSERIAL_SSC32_RX_PIN, BMSERIAL_SSC32_TX_PIN);
+RoboClaw roboClaw = RoboClaw(BMSERIAL_ROBOCLAW_RX_PIN, BMSERIAL_ROBOCLAW_TX_PIN);
 
 //	We only have one RoboClaw 2x5 right now
 uint8_t roboClawControllers = ROBOCLAW_CONTROLLERS - 1;
@@ -223,6 +235,7 @@ long microsecondsToInches (long microseconds) {
 			and return, so we divide by 2 to get the distance of the obstacle.
 		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
 	*/
+	
 	return microseconds / 74 / 2;
 }
 
@@ -236,6 +249,7 @@ long microsecondsToCentimeters (long microseconds) {
 		The ping travels out and back, so to find the distance of the
 			object we take half of the distance travelled.
 	*/
+
 	return microseconds / 29 / 2;
 }
 
@@ -282,7 +296,7 @@ float tempFahrenheit (float celsius) {
 }
 
 /*
-	Display TCS34725 color sensor readings
+	Display the TCS34725 RGB color sensor readings
 */
 void displayColorSensorReadings (ColorSensor *colorData) {
 	console.print("Color Temperature: ");
@@ -311,18 +325,21 @@ void displayColorSensorReadings (ColorSensor *colorData) {
 void displayHeatSensorReadings (HeatSensor *heatData) {
 	console.print("Object Temperature: ");
 	console.print(heatData->objectTemp);
-	console.println("*C");
+	console.println(" C");
 	console.print("Die Temperature: ");
 	console.print(heatData->dieTemp);
-	console.println("*C");
+	console.println(" C");
 }
 
 /*
 	Display data from the RoboClaw 2x5 motor controller
 */
-void displayRoboClawEncoderSpeedDistance (Motor *leftMotor, Motor *rightMotor) {
+void displayRoboClawEncoderSpeedAccelDistance (Motor *leftMotor, Motor *rightMotor) {
 	uint8_t roboClawStatus;
 	bool roboClawValid;
+
+	console.println("RoboClaw 2x5 status:");
+	console.println();
 
 	leftMotor->encoder = roboClaw.ReadEncM1(roboClawAddress, &roboClawStatus, &roboClawValid);
 	
@@ -359,6 +376,8 @@ void displayRoboClawEncoderSpeedDistance (Motor *leftMotor, Motor *rightMotor) {
 		console.print(rightMotor->speed, DEC);
 		console.println();
 	}
+	
+	console.println("");
 }
 
 /*
@@ -407,7 +426,7 @@ void displayPING (void) {
 /*
 	Display the readings from the IMU (Accelerometer, Magnetometer [Compass], and Gyro
 */
-void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEvent, int gyroX, int gyroY, int gyroZ) {
+void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEvent, float celsius, float fahrenheit, int gyroX, int gyroY, int gyroZ) {
 	//	Accelerometer readings
 	console.print("Accelerometer: X = ");
 	console.print(accelEvent->acceleration.x);
@@ -431,6 +450,13 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.print(gyroY);
 	console.print(", Z = ");
 	console.println(gyroZ);
+
+	//	Temperature readings
+	console.print("Room Temperature = ");
+	console.print(fahrenheit);
+	console.print(" F, ");
+	console.print(celsius);
+	console.print(" C.");
 	
 	console.println();
 }
@@ -487,9 +513,10 @@ float readIR (byte pin) {
 	Modified 09-Aug-2013
 		by Dale Weber
 
-		Set units = true for inches, and false for cm
+		Set units = true for cm, and false for inches
 */
-int readPING (byte pingPin, boolean units) {
+int readPING (byte pingPin, boolean units=true) {
+	byte realPin = pingPin + PING_PIN_BASE;
 	long duration;
 	int result;
 
@@ -497,29 +524,28 @@ int readPING (byte pingPin, boolean units) {
 		The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
 		Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
 	*/
-	pinMode(pingPin, OUTPUT);
-	digitalWrite(pingPin, LOW);
+	pinMode(realPin, OUTPUT);
+	digitalWrite(realPin, LOW);
 	delayMicroseconds(2);
-	digitalWrite(pingPin, HIGH);
+	digitalWrite(realPin, HIGH);
 	delayMicroseconds(5);
-	digitalWrite(pingPin, LOW);
+	digitalWrite(realPin, LOW);
 
 	/*
 		The same pin is used to read the signal from the PING))): a HIGH
 		pulse whose duration is the time (in microseconds) from the sending
 		of the ping to the reception of its echo off of an object.
-
-		pinMode(pingPin, INPUT);
-		duration = pulseIn(pingPin, HIGH);
 	*/
+	pinMode(realPin, INPUT);
+	duration = pulseIn(realPin, HIGH);
 
-	//  Convert the time into a distance
+	//  Convert the duration into a distance
 	if (units) {
-		//  Return result in inches.
-		result = microsecondsToInches(duration);
-	} else {
 		//	Return result in cm
 		result = microsecondsToCentimeters(duration);
+	} else {
+		//  Return result in inches.
+		result = microsecondsToInches(duration);
 	}
  
 	delay(100);
@@ -653,11 +679,11 @@ void wireReceiveData (int nrBytesRead) {
 
 void setup () {
 	//  Start up the Wire library as a slave device at address 0xE0
-	Wire.begin(NAV_I2C_ADDRESS);
+//	Wire.begin(NAV_I2C_ADDRESS);
 
 	//  Register event handlers
-	Wire.onRequest(wireRequestEvent);
-	Wire.onReceive(wireReceiveData);
+//	Wire.onRequest(wireRequestEvent);
+//	Wire.onReceive(wireReceiveData);
 
 	//  Initialize the LED pin as an output.
 	pinMode(HEARTBEAT_LED, OUTPUT);
@@ -683,7 +709,7 @@ void setup () {
 	roboClaw.SetM1Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
 	roboClaw.SetM2Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
 
-	displayRoboClawEncoderSpeedDistance(&leftMotor, &rightMotor);
+	displayRoboClawEncoderSpeedAccelDistance(&leftMotor, &rightMotor);
 
 	//	Initialize the accelerometer
 	if (! accelerometer.begin()) {
@@ -722,13 +748,13 @@ void setup () {
 	
 	//	Initialize the TCS34725 color sensor
 	if (! rgbColor.begin()) {
-		console.print("There was a problem initializing the TCS34725 color sensor .. check your wiring or I2C ADDR!");
+		console.print("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
 		while(1);
 	}
 
 	//	Check to be sure the RTC is running
 	if (! clock.isrunning()) {
-		console.println("RTC is NOT running!");
+		console.println("Real Time Clock is NOT running!");
 		while(1);
 	}
   
@@ -807,12 +833,16 @@ void loop () {
 		}
 	}
 
+	displayIR();
+
 	//	Get readings from all the Parallax PING Ultrasonic range sensors, if any, and store them
 	if (MAX_NUMBER_PING > 0) {
 		for (digitalPin = 0; digitalPin < MAX_NUMBER_PING; digitalPin++) {
-			ping[digitalPin] = readPING(digitalPin + PING_PIN_BASE, false);
+			ping[digitalPin] = readPING(digitalPin);
 		}
 	}
+
+	displayPING();
 
 	/*
 		Distance related reactive behaviors HERE
@@ -847,6 +877,8 @@ void loop () {
 
 		//	Convert the atmospheric pressure, SLP and temp to altitude in meters
 		altitude = temperature.pressureToAltitude(seaLevelPressure, tempEvent.pressure, celsius); 
+
+		displayIMUReadings(&accelEvent, &compassEvent, celsius, fahrenheit, gyroX, gyroY, gyroZ);
 	}
 
 	/*
@@ -855,12 +887,17 @@ void loop () {
 	rgbColor.getRawData(&colorData.red, &colorData.green, &colorData.blue, &colorData.c);
 	colorData.colorTemp = rgbColor.calculateColorTemperature(colorData.red, colorData.green, colorData.blue);
 	colorData.lux = rgbColor.calculateLux(colorData.red, colorData.green, colorData.blue);
+
+	displayColorSensorReadings(&colorData);
                     	
 	/*
 		Read the TMP006 heat sensor
 	*/
 	heatData.dieTemp = heat.readDieTempC();
 	heatData.objectTemp = heat.readObjTempC();
+	
+	displayHeatSensorReadings(&heatData);
+	console.println();
                                    
 	if (error != 0) {
 		processError(error);
