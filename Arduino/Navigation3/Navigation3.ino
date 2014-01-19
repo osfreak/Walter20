@@ -223,6 +223,7 @@ long microsecondsToInches (long microseconds) {
 			and return, so we divide by 2 to get the distance of the obstacle.
 		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
 	*/
+	
 	return microseconds / 74 / 2;
 }
 
@@ -236,6 +237,7 @@ long microsecondsToCentimeters (long microseconds) {
 		The ping travels out and back, so to find the distance of the
 			object we take half of the distance travelled.
 	*/
+
 	return microseconds / 29 / 2;
 }
 
@@ -653,11 +655,11 @@ void wireReceiveData (int nrBytesRead) {
 
 void setup () {
 	//  Start up the Wire library as a slave device at address 0xE0
-	Wire.begin(NAV_I2C_ADDRESS);
+//	Wire.begin(NAV_I2C_ADDRESS);
 
 	//  Register event handlers
-	Wire.onRequest(wireRequestEvent);
-	Wire.onReceive(wireReceiveData);
+//	Wire.onRequest(wireRequestEvent);
+//	Wire.onReceive(wireReceiveData);
 
 	//  Initialize the LED pin as an output.
 	pinMode(HEARTBEAT_LED, OUTPUT);
