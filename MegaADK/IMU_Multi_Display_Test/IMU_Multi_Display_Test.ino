@@ -1,9 +1,10 @@
+
 /*
   Program:      IMU_Multi_Display.ino - Inertial Measurement Unit testing, 
                   with multiple 7 segment display support.
 
-  Date:         08-Jan-2014
-  Version:      0.1.3 ALPHA
+  Date:         20-Jan-2014
+  Version:      0.1.5 ALPHA
 
   Purpose:      To allow experimentation and testing with various IMUs, including
                   the Adafruit 10 DOF IMU with BMP180 temperature/preasure, LMS303DLHC
@@ -36,6 +37,8 @@
 */
 
 #include <Wire.h>
+#include <Adafruit_LEDBackpack.h>
+#include <Adafruit_GFX.h>
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP180_Unified.h>
@@ -51,10 +54,10 @@
 #include <Adafruit_TMP006.h>
 
 #include <RTClib.h>
-//#include <BMSerial.h>
+#include <BMSerial.h>
 //#include <RoboClaw.h>
 
-#include "IMU_Multi_Display.h"
+#include "IMU_Multi_Display_Test.h"
 
 /************************************************************
   This sketch uses the 10DOF IMU from Adafruit, which has a
@@ -69,10 +72,19 @@
     Global variables
 */
 
+//	Hardware Serial console (replaces Serial.* routines)
+BMSerial console = BMSerial(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
+
 Adafruit_8x8matrix matrix8x8 = Adafruit_8x8matrix();
 
-Adafruit_BMP180_Unified bmp180 = Adafruit_BMP180_Unified(10085);
-RTC_DS1307 rtc;
+Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
+Adafruit_LSM303_Accel_Unified accelerometer = Adafruit_LSM303_Accel_Unified(10002);
+Adafruit_LSM303_Mag_Unified compass = Adafruit_LSM303_Mag_Unified(10003);
+Adafruit_L3GD20 gyro;
+
+Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+Adafruit_TMP006 heat = Adafruit_TMP006();
+RTC_DS1307 clock;
 
 //  Support for multiple 7 segment displays
 Adafruit_7segment sevenSeg[NUMBER_DISPLAYS];
@@ -80,6 +92,22 @@ Adafruit_7segment sevenSeg[NUMBER_DISPLAYS];
 boolean displayDate = true;
 uint8_t dateDisplayFreq = 15;              //  How often to display the date, in minutes
 uint8_t minuteCount = 0;                   //  Count the minutes
+
+ColorSensor colorData = {
+	0,
+	0,
+
+	0,
+	0,
+	0,
+
+	0
+};
+
+HeatSensor heatData = {
+	0.0,
+	0.0
+};
 
 static const uint8_t PROGMEM
   hpa_bmp[] = {
@@ -429,6 +457,8 @@ void setup () {
   
   //  Setup and turn off the Color sensor's LED
   pinMode(COLOR_SENSOR_LED, OUTPUT);
+  digitalWrite(COLOR_SENSOR_LED, HIGH);
+  delay(100);
   digitalWrite(COLOR_SENSOR_LED, LOW);
 
   /*
@@ -504,7 +534,7 @@ void setup () {
 
 	//	Check to be sure the RTC is running
 	if (! clock.isrunning()) {
-		console.println("Real Time Clock is NOT running!");
+		console.println("The Real Time Clock is NOT running!");
 		while(1);
 	}
 
@@ -517,10 +547,10 @@ void setup () {
 void loop () {
   boolean amTime;
   uint8_t displayNr = 0;
-  DateTime now = rtc.now();
+  DateTime now = clock.now();
   float celsius, fahrenheit, altitude;
   float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
-  sensors_event_t bmp180event;
+  sensors_event_t tempEvent;
   
   uint8_t hour = now.hour(), nrDisplays = 0;
   uint16_t displayInt;
@@ -640,10 +670,10 @@ void loop () {
 */
 
   /* Get a new sensor event */ 
-  bmp180.getEvent(&bmp180event);
+  temperature.getEvent(&tempEvent);
   
   //  Display the barometric pressure in hPa
-  if (bmp180event.pressure) {
+  if (tempEvent.pressure) {
     
     /* Calculating altitude with reasonable accuracy requires pressure    *
      * sea level pressure for your position at the moment the data is     *
@@ -661,11 +691,11 @@ void loop () {
      * pressure and sea level at: http://bit.ly/16Au8ol                   */
 
     //  First we get the current temperature from the BMP180 in celsius and fahrenheit
-    bmp180.getTemperature(&celsius);
+    temperature.getTemperature(&celsius);
     fahrenheit = tempFahrenheit(celsius);
 
     //   Convert the atmospheric pressure, SLP and temp to altitude in meters
-    altitude = bmp180.pressureToAltitude(seaLevelPressure, bmp180event.pressure, celsius); 
+    altitude = temperature.pressureToAltitude(seaLevelPressure, tempEvent.pressure, celsius); 
 /*
     //  Display the barometric pressure in hPa
     sevenSeg.print(event.pressure);

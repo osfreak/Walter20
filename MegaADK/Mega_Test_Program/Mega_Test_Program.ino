@@ -1,63 +1,6 @@
 /*
-	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			19-Jan-2014
-	Version:		0.1.9 ALPHA
-
-	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
-						not sure the sensor locations are going to work out.
-
-					Added BMSerial ports for the SSC-32 and RoboClaw 2x5 controllers;
-						defined a Motor struct to hold information about motors; added motor
-						definitions and initialization; modified moveServoPw() and moveServoDegrees()
-						to work with a BMSerial port.
-
-					Converted to using a BMSerial() port for the hardware serial console port
-
-					Converted to running the RoboClaw 2x5 motor controller in Packet Serial mode,
-						with all the goodies - encoders, speed, acceleration, and distance.
-
-					Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
-
-					-------------------------------------------------------------------------------------
-					v0.1.7 ALPHA:
-					Added ColorSensor struct for RGB color sensor data; added code to read the TCS34725
-						RGB color and TMP006 heat sensors.
-
-					Added a control pin (COLOR_SENSOR_LED, pin 4) so the LED can be turned on and off.
-
-					-------------------------------------------------------------------------------------
-					v0.1.8 ALPHA:
-					Fixed a bug in readPING() - was not getting the duration, because code was in a comment.
-
-					Now displaying readings from all sensors in the main loop. RGB color and Heat sensors are
-						working. IMU seems to be working so far - still need to get useful information from it.
-
-					The SSC-32 doesn't seem to like SoftwareSerial ports.
-
-					I'm thinking more seriously about moving to the Arduino Mega ADK board. There is only about
-						5Kb of program memory left, RAM is low, etc. I don't think I have a choice here.
-
-					-------------------------------------------------------------------------------------
-					v0.1.9 ALPHA:
-					Starting migration from the Arduino (BotBoarduino) to the Arduino Mega ADK board
-
-					-------------------------------------------------------------------------------------
-
-	Dependencies:	Adafruit libraries:
-						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
-
-					Hybotics libraries:
-						BMP180 (modified from Adafruit's BMP085 library)
-
-	Comments:		Credit is given, where applicable, for code I did not originate.
-						This sketch started out as an Adafruit tutorial for the electret
-						microphones being used for sound detection. I've also pulled
-						code for the GP2Y0A21YK0F IR and PING sensors from the Arduino
-						Playground, which I have modified to suit my needs.
-
-					Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
+    Arduino Mega Test Program
 */
-
 #include <Wire.h>
 
 #include <Adafruit_Sensor.h>
@@ -84,38 +27,13 @@
 
 #include "Navigation3.h"
 
-/***************************************************************************
-  This sketch uses the 10DOF IMU from Adafruit, which has a
-    BMP180 Temperature/Barometric pressure sensor, a
-    LMS303DLHC Three-axis accelerometer / Three-axis magnetometer (compass),
-    and a L3GD20 Three-axis Gyroscope.
-    
-    Adafruit product http://www.adafruit.com/products/1604
-***************************************************************************/
+#define  BOARD_LED        13
+#define  TOGGLE_TIME_MS   500
 
-/*
-    Global variables
-*/
-
-/*
-	Initialize our sensors
-
-	We have:
-		These are all on a single small board from Adafruit
-			http://www.adafruit.com/products/1604
-				A BMP180 temperature and pressure sensor
-				An L3GD20 Gyro
-				An LSM303 3-Axis accelerometer / magnetometer (compass)
-
-		These are also from Adafruit:
-			http://www.adafruit.com/products/1334 (TCS34725 RGB Color sensor)
-			http://www.adafruit.com/products/1296 (TMP006 Heat sensor)
-			http://www.adafruit.com/products/264 (DS1307 Realtime Clock)
-
-		From other sources:
-			GP2Y0A21YK0F IR Ranging sensors (4)
-			PING Ultrasonic Ranging sensors (3)
-*/
+//	We only have one RoboClaw 2x5 right now
+uint8_t roboClawControllers = ROBOCLAW_CONTROLLERS - 1;
+uint8_t	roboClawBaseAddress = ROBOCLAW_SERIAL_BASE_ADDR;
+uint8_t roboClawAddress = ROBOCLAW_SERIAL_BASE_ADDR;
 
 Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
 Adafruit_LSM303_Accel_Unified accelerometer = Adafruit_LSM303_Accel_Unified(10002);
@@ -125,34 +43,6 @@ Adafruit_L3GD20 gyro;
 Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_TMP006 heat = Adafruit_TMP006();
 RTC_DS1307 clock;
-
-/*
-    Initialize global variables
-*/
-
-//	Hardware Serial console (replaces Serial.* routines)
-BMSerial console = BMSerial(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
-
-/*
-    We have to use a software I2C connection, because the master controller
-      uses the main I2C bus to communicate with us.
-*/
-SoftI2CMaster i2c = SoftI2CMaster(SOFT_I2C_SDA_PIN, SOFT_I2C_SCL_PIN, 0);
-
-/*
-	BMSerial Ports - Hardware serial ports on the Arduino Mega ADK
-*/
-//	Hardware Serial1
-BMSerial ssc32 = BMSerial(SERIAL_SSC32_RX_PIN, SERIAL_SSC32_TX_PIN);
-//	Hardware Serial2
-RoboClaw roboClaw = RoboClaw(SERIAL_ROBOCLAW_RX_PIN, SERIAL_ROBOCLAW_TX_PIN);
-//	Hardware Serial3
-BMSerial xbee = BMSerial(SERIAL_XBEE_RX_PIN, SERIAL_XBEE_TX_PIN);
-
-//	We only have one RoboClaw 2x5 right now
-uint8_t roboClawControllers = ROBOCLAW_CONTROLLERS - 1;
-uint8_t	roboClawBaseAddress = ROBOCLAW_SERIAL_BASE_ADDR;
-uint8_t roboClawAddress = ROBOCLAW_SERIAL_BASE_ADDR;
 
 /*
 	Initialize motors
@@ -231,8 +121,22 @@ HeatSensor heatData = {
 };
 
 /*
-	Code starts here
+    SSC-32 works on Serial1
+    RoboClaw 2x5 works on Serial2
 */
+
+//	Hardware Serial console (replaces Serial.* routines)
+BMSerial console = BMSerial(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
+
+/*
+	BMSerial Ports - Hardware serial ports on the Arduino Mega ADK
+*/
+//	Hardware Serial1
+BMSerial ssc32 = BMSerial(SERIAL_SSC32_RX_PIN, SERIAL_SSC32_TX_PIN);
+//	Hardware Serial2
+RoboClaw roboClaw = RoboClaw(SERIAL_ROBOCLAW_RX_PIN, SERIAL_ROBOCLAW_TX_PIN);
+//	Hardware Serial3
+BMSerial xbee = BMSerial(SERIAL_XBEE_RX_PIN, SERIAL_XBEE_TX_PIN);
 
 /*
     Convert a pulse width in ms to inches
@@ -261,41 +165,6 @@ long microsecondsToCentimeters (long microseconds) {
 	*/
 
 	return microseconds / 29 / 2;
-}
-
-/*
-    Left zero pad a numeric string
-*/
-String leftZeroPadString (String st, uint8_t nrPlaces) {
-	uint8_t i, len;
-	String newStr = st;
-
-	if (newStr.length() < nrPlaces) {
-		len = st.length();
-
-		for (i = len; i < nrPlaces; i++) {
-			newStr = String("0" + newStr);
-		}
-	}
-
-	return newStr;
-}
-
-/*
-    Trim trailing zeros from a numeric string
-*/
-String trimTrailingZeros (String st) {
-	uint8_t newStrLen = 0;
-	String newStr = st;
-
-	newStrLen = newStr.length();
-
-	while (newStr.substring(newStrLen - 1) == "0") {
-		newStrLen -= 1;
-		newStr = newStr.substring(0, newStrLen);
-	}
-
-	return newStr;
 }
 
 /*
@@ -564,16 +433,6 @@ int readPING (byte pingPin, boolean units=true) {
 }
 
 /*
-    Pulses a digital pin for a duration in ms
-*/
-void pulseDigital(int pin, int duration) {
-	digitalWrite(pin, HIGH);			// Turn the ON by making the voltage HIGH (5V)
-	delay(duration);					// Wait for duration ms
-	digitalWrite(pin, LOW);				// Turn the pin OFF by making the voltage LOW (0V)
-	delay(duration);					// Wait for duration ms
-}
-
-/*
     Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use BMSerial
 */
 void moveServoPw (BMSerial *port, Servo *servo, int servoPosition, int moveSpeed, int moveTime, boolean term) {
@@ -674,17 +533,13 @@ void processError (byte err) {
 }
 
 /*
-    Called when a request from an I2C (Wire) Master comes in
+    Pulses a digital pin for a duration in ms
 */
-void wireRequestEvent (void) {
-  
-}
-
-/*
-    Called when the I2C (Wire) Slave receives data from an I2C (Wire) Master
-*/
-void wireReceiveData (int nrBytesRead) {
-
+void pulseDigital(int pin, int duration) {
+	digitalWrite(pin, HIGH);			// Turn the ON by making the voltage HIGH (5V)
+	delay(duration);					// Wait for duration ms
+	digitalWrite(pin, LOW);				// Turn the pin OFF by making the voltage LOW (0V)
+	delay(duration);					// Wait for duration ms
 }
 
 void setup () {
@@ -775,7 +630,7 @@ void setup () {
 //	moveServoDegrees(&ssc32, &tiltS, moveDegrees, moveSpeed, moveTime, true);
 }
 
-void loop () {
+void loop() {
 	//	The current date and time from the DS1307 real time clock
 	DateTime now = clock.now();
 
@@ -908,8 +763,5 @@ void loop () {
 	
 	displayHeatSensorReadings(&heatData);
 	console.println();
-                                   
-	if (error != 0) {
-		processError(error);
-	}
+  
 }

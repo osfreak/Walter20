@@ -141,7 +141,7 @@ struct HeatSensor {
 };
 
 struct Motor {
-	uint8_t pin;
+	byte pin;
 
 	uint16_t pulseWidthMin;
 	uint16_t pulseWidthMax;
@@ -149,14 +149,14 @@ struct Motor {
 
 	uint32_t encoder;
 	uint32_t speed;
-	bool forward;
+	boolean forward;
 
 	long distance;
 	long ticks;
 };
 
 struct Servo {
-	uint8_t pin;
+	byte pin;
 
 	int offset;
 	int msPulse;
