@@ -1,7 +1,7 @@
 #include <BMSerial.h>
 #include <RoboClaw.h>
 
-#include "Navigation3.h"
+#include "PacketSerialEncoderSpeedAccelDistance.h"
 
 #define address 0x80
 

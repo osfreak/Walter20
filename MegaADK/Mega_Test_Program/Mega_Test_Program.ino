@@ -25,7 +25,7 @@
 */
 #include <SoftI2CMaster.h>
 
-#include "Navigation3.h"
+#include "Mega_Test_Program.h"
 
 #define  BOARD_LED        13
 #define  TOGGLE_TIME_MS   500
