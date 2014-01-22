@@ -137,6 +137,37 @@ RTC_DS1307 clock;
     Initialize global variables
 */
 
+/*
+	These variables control the display of various information
+		on the seven segment and matrix displays.
+*/
+boolean	displayInformation = true;			//	Display useful information on the displays
+
+boolean displayDate = true;
+uint8_t dateMinuteCount = 0;
+uint8_t dateDisplayFreq = 15;				//	How often to display the date, in minutes
+
+boolean displayTime = true;
+uint8_t timeMinuteCount = 0;
+uint8_t timeDisplayFreq = 15;				//	How often to display the time, in minutes
+
+boolean displayTemperature = true;
+uint8_t temperatureMinuteCount = 0;
+uint8_t temperatureDisplayFreq = 15;		//	How often to display the temperature, in minutes
+
+/*
+	Time control variables
+*/
+uint8_t currentMinute = 0;
+uint8_t lastMinute = -1;
+long minuteCount = 0;						//	Count the time, in minutes, since we were last started
+
+//	Enable run once only loop code to run
+boolean firstLoop = true;
+
+//	Error control
+byte error = 0;
+
 //	Hardware Serial console (replaces Serial.* routines)
 BMSerial console = BMSerial(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
 
@@ -473,6 +504,22 @@ long microsecondsToCentimeters (long microseconds) {
 */
 float tempFahrenheit (float celsius) {
 	return (celsius * 1.8) + 32;
+}
+
+/*
+	Clear all the seven segment and matrix displays
+*/
+void clearDisplays (void) {
+	uint8_t displayNr = 0;
+
+	while (displayNr < NUMBER_DISPLAYS) {
+		sevenSeg[displayNr].clear();
+		sevenSeg[displayNr].drawColon(false);
+
+		displayNr += 1;
+	}
+
+	matrix8x8.clear();
 }
 
 /*
@@ -896,7 +943,9 @@ void setup () {
 	displayRoboClawEncoderSpeedAccelDistance(&leftMotor, &rightMotor);
 
 	/*
-		Multiple 7 segment displays will be supported.
+		Multiple 7 segment displays will be supported. The displays
+			should be on the breadboard, starting at the right with
+			the lowest addressed display and going to the left.
 	*/
 
 	//  Initialize the 7-Segment display(s)
@@ -907,6 +956,11 @@ void setup () {
 		sevenSeg[nrDisp].drawColon(false);
 	}
 
+	/*
+		The matrix display address is one higher than the last
+			seven segment display, based on the number of seven
+			seven segment displays that are configured.
+	*/
 	matrix8x8.begin(MATRIX_DISPLAY_ADDR);
 	matrix8x8.setBrightness(1);
 	matrix8x8.setRotation(3);
@@ -992,16 +1046,19 @@ void loop () {
 	//	The current date and time from the DS1307 real time clock
 	DateTime now = clock.now();
 
+	//	Display related variables
+	boolean amTime;
+	uint8_t displayNr = 0;
+	uint8_t currentHour = now.hour(), nrDisplays = 0;
+	uint16_t displayInt;
+
 	uint8_t roboClawStatus;
 	bool roboClawValid;
-    
-	byte error = 0;
-
-	boolean amTime;
 
 	uint8_t analogPin = 0;
 	uint8_t digitalPin = 0;
 
+	//	IMU variables
 	float celsius, fahrenheit, altitude;
 	float accelX, accelY, accelZ;
 	float compassX, compassY, compassZ;
@@ -1014,10 +1071,83 @@ void loop () {
 	/*
 		Code starts here
 	*/
-  
+	currentMinute = now.minute();
+
+	/*
+		This is code that only runs one time, to initialize
+			special cases.
+	*/
+	if ((firstLoop) && (currentMinute != lastMinute)) {
+		lastMinute = currentMinute;
+
+		firstLoop = false;
+	}
+
+	clearDisplays();
+
 	// Pulse the heartbeat LED
 	pulseDigital(HEARTBEAT_LED, 500);
+
+	//  Display the date, if it's time
+	if (displayDate && displayInformation) {
+		displayInt = (now.month() * 100) + now.day();  
+
+		//  Month and day
+		writeNumber(0, displayInt, 0, true);
+		matrix8x8.drawBitmap(0, 0, date_bmp, 8, 8, LED_ON);
+
+		sevenSeg[0].writeDisplay();
+		matrix8x8.writeDisplay();
+
+		delay(5000);
+
+		sevenSeg[0].clear();
+		matrix8x8.clear();  
+
+		//  Year
+		writeNumber(0, now.year(), 0, false);
+		matrix8x8.drawBitmap(0, 0, year_bmp, 8, 8, LED_ON);
+
+		sevenSeg[0].writeDisplay();
+		matrix8x8.writeDisplay();
+
+		delay(5000);
+    
+		dateMinuteCount = 0;
+		clearDisplays();
+	}
   
+	if (displayTime && displayInformation) {
+		if (currentHour > 12) {
+			amTime = false;
+			currentHour = currentHour - 12;
+		} else {
+			amTime = true;
+		}
+	  
+		displayInt = (currentHour * 100) + now.minute();  
+
+		//  Display the current time on the 7 segment display
+		writeNumber(0, displayInt, 0, false);
+		sevenSeg[0].drawColon(true);
+	  
+		matrix8x8.clear();
+	  
+		if (amTime) {
+			matrix8x8.drawBitmap(0, 0, am_bmp, 8, 8, LED_ON);
+		} else {
+			matrix8x8.drawBitmap(0, 0, pm_bmp, 8, 8, LED_ON);
+		}
+	  
+		sevenSeg[0].writeDisplay();
+		matrix8x8.writeDisplay();
+	  
+		delay(5000);
+
+		timeMinuteCount = 0;
+		clearDisplays();
+	}
+
 	/*
 		Get accelerometer readings
 	*/
@@ -1046,7 +1176,7 @@ void loop () {
 	gyroZ = (int)gyro.data.z;
 
 	/*
-		Accelerometer and Gyro reactive behaviors HERE
+		Put accelerometer and Gyro reactive behaviors HERE
 	*/
 
 	//	Get readings from all the GP2Y0A21YK0F Analog IR range sensors, if any, and store them
@@ -1068,7 +1198,7 @@ void loop () {
 	displayPING();
 
 	/*
-		Distance related reactive behaviors HERE
+		Put distance related reactive behaviors HERE
 	*/
 
 	/*
@@ -1102,6 +1232,34 @@ void loop () {
 		altitude = temperature.pressureToAltitude(seaLevelPressure, tempEvent.pressure, celsius); 
 
 		displayIMUReadings(&accelEvent, &compassEvent, celsius, fahrenheit, gyroX, gyroY, gyroZ);
+
+		if (displayTemperature && displayInformation) {
+			//  Display the temperature in Fahrenheit
+			writeNumber(0, int(fahrenheit * 100), 2, false);
+			sevenSeg[0].writeDisplay();
+
+			matrix8x8.clear();
+			matrix8x8.drawBitmap(0, 0, f_bmp, 8, 8, LED_ON);
+			matrix8x8.writeDisplay();
+
+			delay(5000);
+
+			//  Display the temperature in Celsius
+			writeNumber(0, int(celsius * 100), 2, false);
+			sevenSeg[0].writeDisplay();
+
+			matrix8x8.clear();
+			matrix8x8.drawBitmap(0, 0, c_bmp, 8, 8, LED_ON);
+			matrix8x8.writeDisplay();
+
+			delay(5000);
+			temperatureMinuteCount = 0;
+			clearDisplays();
+		}
+	}
+
+	if (error == 0) {
+		clearDisplays();
 	}
 
 	/*
@@ -1124,5 +1282,26 @@ void loop () {
                                    
 	if (error != 0) {
 		processError(error);
+	}
+
+	//	Count the minutes
+	if (currentMinute != lastMinute) {
+		if (displayInformation) {
+			dateMinuteCount += 1;
+			temperatureMinuteCount += 1;
+			timeMinuteCount += 1;
+		}
+
+		minuteCount += 1;
+		lastMinute = currentMinute;
+	}
+
+	/*
+		Update the information display control variables
+	*/
+	if (displayInformation) {
+		displayDate = (dateMinuteCount == dateDisplayFreq);
+		displayTemperature = (temperatureMinuteCount == temperatureDisplayFreq);
+		displayTime = (timeMinuteCount == timeDisplayFreq);
 	}
 }

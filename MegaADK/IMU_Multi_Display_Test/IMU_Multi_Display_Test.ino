@@ -213,7 +213,7 @@ static const uint8_t PROGMEM
 	Display the TCS34725 RGB color sensor readings
 */
 void displayColorSensorReadings (ColorSensor *colorData) {
-	console.print("Color Temperature: ");
+  console.print("Color Temperature: ");
 	console.print(colorData->colorTemp, DEC);
 	console.print(" K - ");
 	console.print("Lux: ");
@@ -555,6 +555,7 @@ void loop () {
   uint8_t hour = now.hour(), nrDisplays = 0;
   uint16_t displayInt;
 
+/*
   String displayString;
   String timeString;
   String currMonth = leftZeroPadString(String(now.month()), 2);
@@ -562,7 +563,8 @@ void loop () {
   String currYear = leftZeroPadString(String(now.year()), 4);
   String currMinute = leftZeroPadString(String(now.minute()), 2);
   String currSecond = leftZeroPadString(String(now.second()), 2);
-  
+*/
+
   //  Clear the displays
   for (displayNr = 0; displayNr < NUMBER_DISPLAYS; displayNr ++) {
     sevenSeg[displayNr].clear();
