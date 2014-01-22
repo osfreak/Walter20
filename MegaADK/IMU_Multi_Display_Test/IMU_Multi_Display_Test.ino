@@ -75,6 +75,9 @@
 //	Hardware Serial console (replaces Serial.* routines)
 BMSerial console = BMSerial(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
 
+//  Support for multiple 7 segment displays
+Adafruit_7segment sevenSeg[NUMBER_DISPLAYS];
+
 Adafruit_8x8matrix matrix8x8 = Adafruit_8x8matrix();
 
 Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
@@ -85,9 +88,6 @@ Adafruit_L3GD20 gyro;
 Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_TMP006 heat = Adafruit_TMP006();
 RTC_DS1307 clock;
-
-//  Support for multiple 7 segment displays
-Adafruit_7segment sevenSeg[NUMBER_DISPLAYS];
 
 boolean displayDate = true;
 uint8_t dateDisplayFreq = 15;              //  How often to display the date, in minutes

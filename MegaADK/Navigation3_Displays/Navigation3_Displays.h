@@ -40,6 +40,11 @@
 #define	SPEAKER_OUT						5
 #define	HEARTBEAT_LED       	        13
 
+#define	NUMBER_DISPLAYS					1
+#define	SEVEN_SEG_BASE_ADDR				0x70
+
+#define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + NUMBER_DISPLAYS
+
 /*
 	Sensor settings
 */
