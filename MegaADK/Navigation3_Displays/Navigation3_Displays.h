@@ -1,7 +1,7 @@
 /*
 	Program:      	W.A.L.T.E.R. 2.0, Main navigation, and reactive behaviors, header file
-	Date:         	19-Jan-2014
-	Version:      	0.1.9 ALPHA
+	Date:         	22-Jan-2014
+	Version:      	0.2.0 ALPHA
 
 	Purpose:		Added definitions for SoftwareSerial ports for the SSC-32 and RoboClaw 2x5
 
@@ -40,16 +40,28 @@
 #define	SPEAKER_OUT						5
 #define	HEARTBEAT_LED       	        13
 
+//	Display constants
 #define	NUMBER_DISPLAYS					1
 #define	SEVEN_SEG_BASE_ADDR				0x70
 
 #define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + NUMBER_DISPLAYS
 
 /*
+	These settings control whether standard information is displayed
+		on the seven segment and matrix displays or not, and how
+		often, in minutes.
+*/
+#define	DISPLAY_INFORMATION				true
+
+#define	DISPLAY_DATE_FREQ_MIN			15
+#define	DISPLAY_TIME_FREQ_MIN			15
+#define	DISPLAY_TEMPERATURE_FREQ_MIN	15
+
+/*
 	Sensor settings
 */
 #define	IR_PIN_BASE						6			//	Analog 6
-#define	PING_PIN_BASE					28
+#define	PING_PIN_BASE					24
 
 #define	MAX_NUMBER_PING					1
 
@@ -100,6 +112,8 @@
 #define	SERVO_MOTOR_LEFT_MIN			1000
 #define	SERVO_MOTOR_LEFT_MAX			2000
 
+#define	SERVO_MOTOR_LEFT
+
 #define	SERVO_MOTOR_RIGHT_PIN	        5
 #define	SERVO_MOTOR_RIGHT_ADJUST        0
 #define	SERVO_MOTOR_RIGHT_MIN			1000
@@ -122,12 +136,6 @@
 /*
 	End of SSC-32 definitions
 */
-
-//	Display constants
-#define	SEVEN_SEG_NR_DISPLAYS			1
-#define	SEVEN_SEG_BASE_ADDR				0x70
-
-#define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + SEVEN_SEG_NR_DISPLAYS
 
 struct ColorSensor {
 	uint16_t colorTemp;
@@ -153,11 +161,17 @@ struct Motor {
 	uint16_t pulseWidthAdjust;
 
 	uint32_t encoder;
+	uint8_t encoderStatus;
+	bool encoderValid;
+
 	uint32_t speed;
+	uint8_t speedStatus;
+	bool speedValid;
+
 	bool forward;
 
 	long distance;
-	long ticks;
+	bool distanceValid;
 };
 
 struct Servo {

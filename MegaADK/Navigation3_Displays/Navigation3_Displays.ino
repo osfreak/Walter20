@@ -141,26 +141,24 @@ RTC_DS1307 clock;
 	These variables control the display of various information
 		on the seven segment and matrix displays.
 */
-boolean	displayInformation = true;			//	Display useful information on the displays
-
+//	Date display
 boolean displayDate = true;
 uint8_t dateMinuteCount = 0;
-uint8_t dateDisplayFreq = 15;				//	How often to display the date, in minutes
 
+//	Time display
 boolean displayTime = true;
 uint8_t timeMinuteCount = 0;
-uint8_t timeDisplayFreq = 15;				//	How often to display the time, in minutes
 
+//	Temperature display
 boolean displayTemperature = true;
 uint8_t temperatureMinuteCount = 0;
-uint8_t temperatureDisplayFreq = 15;		//	How often to display the temperature, in minutes
 
 /*
 	Time control variables
 */
 uint8_t currentMinute = 0;
 uint8_t lastMinute = -1;
-long minuteCount = 0;						//	Count the time, in minutes, since we were last started
+long minuteCount = 0;						//	Count the time, in minutes, since we were last restarted
 
 //	Enable run once only loop code to run
 boolean firstLoop = true;
@@ -186,51 +184,27 @@ SoftI2CMaster i2c = SoftI2CMaster(SOFT_I2C_SDA_PIN, SOFT_I2C_SCL_PIN, 0);
 	BMSerial Ports - Hardware serial ports on the Arduino Mega ADK
 */
 //	Hardware Serial1
-BMSerial ssc32 = BMSerial(SERIAL_SSC32_RX_PIN, SERIAL_SSC32_TX_PIN);
+BMSerial ssc32(SERIAL_SSC32_RX_PIN, SERIAL_SSC32_TX_PIN);
 //	Hardware Serial2
-RoboClaw roboClaw = RoboClaw(SERIAL_ROBOCLAW_RX_PIN, SERIAL_ROBOCLAW_TX_PIN);
+RoboClaw roboClaw(SERIAL_ROBOCLAW_RX_PIN, SERIAL_ROBOCLAW_TX_PIN);
 //	Hardware Serial3
-BMSerial xbee = BMSerial(SERIAL_XBEE_RX_PIN, SERIAL_XBEE_TX_PIN);
+BMSerial xbee(SERIAL_XBEE_RX_PIN, SERIAL_XBEE_TX_PIN);
 
 //	We only have one RoboClaw 2x5 right now
 uint8_t roboClawControllers = ROBOCLAW_CONTROLLERS - 1;
 uint8_t	roboClawBaseAddress = ROBOCLAW_SERIAL_BASE_ADDR;
 uint8_t roboClawAddress = ROBOCLAW_SERIAL_BASE_ADDR;
+char *roboClawVersion;
 
 /*
 	Initialize motors
 */
 
 //	RoboClaw 2x5 motor M1
-Motor leftMotor = {
-	//	These four parameters are for PWM (R/C) control modes
-	SERVO_MOTOR_LEFT_PIN,
-	SERVO_MOTOR_LEFT_MIN,
-	SERVO_MOTOR_LEFT_MAX,
-	SERVO_MOTOR_LEFT_ADJUST,
-
-	0,								//	Motor Encoder value
-	0,								//	Motor Speed
-	true,							//	Motor direction: Forward = true, Reverse = false
-	0,								//	Distance traveled
-	0								//	Encoder ticks
-};
-
+Motor leftMotor;
 //	RoboClaw 2x5 motor M2
-Motor rightMotor = {
-	//	These four parameters are for PWM (R/C) control modes
-	SERVO_MOTOR_RIGHT_PIN,
-	SERVO_MOTOR_RIGHT_MIN,
-	SERVO_MOTOR_RIGHT_MAX,
-	SERVO_MOTOR_RIGHT_ADJUST,
+Motor rightMotor;
 
-	0,								//	Motor Encoder value
-	0,								//	Motor Speed
-	true,							//	Motor direction: Forward = true, Reverse = false
-	0,								//	Distance traveled
-	0								//	Encoder ticks
-};
-                            
 /*
     Initialize servos
 */
@@ -419,7 +393,8 @@ String trimTrailingZeros (String st) {
     Multiple 7 segment displays are supported automatically. You just have to
       set the number of displays in the IMU_Multi_Display.h and set the proper
       I2C addresses for the displays. The base address is 0x70, as shipped by
-      Adafruit. Up to 8 of these displays are supported, with the setup being
+      Adafruit. Up to 8 of these displays are supported, with the 
+      being
       highest addressed display farthest to the left, and decreasing addresses
       moving to the right. The lowest addressed (0x70) display has to be at the
       far right for this to work.
@@ -515,11 +490,13 @@ void clearDisplays (void) {
 	while (displayNr < NUMBER_DISPLAYS) {
 		sevenSeg[displayNr].clear();
 		sevenSeg[displayNr].drawColon(false);
+		sevenSeg[displayNr].writeDisplay();
 
 		displayNr += 1;
 	}
 
 	matrix8x8.clear();
+	matrix8x8.writeDisplay();
 }
 
 /*
@@ -559,70 +536,23 @@ void displayHeatSensorReadings (HeatSensor *heatData) {
 }
 
 /*
-	Display data from the RoboClaw 2x5 motor controller
-*/
-void displayRoboClawEncoderSpeedAccelDistance (Motor *leftMotor, Motor *rightMotor) {
-	uint8_t roboClawStatus;
-	bool roboClawValid;
-
-	console.println("RoboClaw 2x5 status:");
-	console.println();
-
-	leftMotor->encoder = roboClaw.ReadEncM1(roboClawAddress, &roboClawStatus, &roboClawValid);
-	
-    if (roboClawValid) {
-		console.print("Left Motor Encoder = ");
-		console.print(leftMotor->encoder, DEC);
-		console.print(", Status =  ");
-		console.print(roboClawStatus, HEX);
-		console.println();
-	}
-
-	leftMotor->speed = roboClaw.ReadSpeedM1(roboClawAddress, &roboClawStatus, &roboClawValid);
-
-	if (roboClawValid) {
-		console.print("Left Motor Speed = ");
-		console.print(leftMotor->speed, DEC);
-		console.println();
-	}
-
-	rightMotor->encoder = roboClaw.ReadEncM2(roboClawAddress, &roboClawStatus, &roboClawValid);
-
-	if (roboClawValid) {
-		console.print("Right Motor Encoder = ");
-		console.print(rightMotor->encoder, DEC);
-		console.print(", Status = ");
-		console.print(roboClawStatus, HEX);
-		console.println();
-	}
-
-	rightMotor->speed = roboClaw.ReadSpeedM2(roboClawAddress, &roboClawStatus, &roboClawValid);
-
-	if (roboClawValid) {
-		console.print("Right Motor Speed = ");
-		console.print(rightMotor->speed, DEC);
-		console.println();
-	}
-	
-	console.println("");
-}
-
-/*
     Display the GP2Y0A21YK0F IR sensor readings (cm)
 */
 void displayIR (void) {
-	int sensorNr;
+	int sensorNr = 0;
   
 	console.println("------------------------------------");
 	console.println("IR Sensor readings");
 	console.println("------------------------------------");
 
-	for (sensorNr = 0; sensorNr < MAX_NUMBER_IR; sensorNr++) { 
+	while (sensorNr < MAX_NUMBER_IR) {
 		console.print("IR #");
 		console.print(sensorNr + 1);
 		console.print(" range = ");
 		console.print(ir[sensorNr]);
 		console.println(" cm");
+
+		sensorNr += 1;
 	}
 
 	console.println();  
@@ -632,19 +562,21 @@ void displayIR (void) {
 	Display the readings from the PING Ultrasonic sensors
 */
 void displayPING (void) {
-	int sensorNr;
+	int sensorNr = 0;
   
 	console.println("------------------------------------");
 	console.println("PING Ultrasonic Sensor readings");
 	console.println("------------------------------------");
   
 	//	Display PING sensor readings (cm)
-	for (sensorNr = 0; sensorNr < MAX_NUMBER_PING; sensorNr++) {
+	while (sensorNr < MAX_NUMBER_PING) {
 		console.print("Ping #");
 		console.print(sensorNr + 1);
 		console.print(" range = ");
 		console.print(ping[sensorNr]);
 		console.println(" cm");
+
+		sensorNr += 1;
 	}
  
 	console.println("");
@@ -703,7 +635,8 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	TODO: Make several readings over a time period, and average them
 		for the final reading.
 */
-float readIR (byte pin) {
+float readIR (byte sensorNr) {
+	byte pin = sensorNr + IR_PIN_BASE;
 	int tmp;
 
 	tmp = analogRead(pin);
@@ -742,8 +675,8 @@ float readIR (byte pin) {
 
 		Set units = true for cm, and false for inches
 */
-int readPING (byte pingPin, boolean units=true) {
-	byte realPin = pingPin + PING_PIN_BASE;
+int readPING (byte sensorNr, boolean units=true) {
+	byte pin = sensorNr + PING_PIN_BASE;
 	long duration;
 	int result;
 
@@ -751,20 +684,20 @@ int readPING (byte pingPin, boolean units=true) {
 		The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
 		Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
 	*/
-	pinMode(realPin, OUTPUT);
-	digitalWrite(realPin, LOW);
+	pinMode(pin, OUTPUT);
+	digitalWrite(pin, LOW);
 	delayMicroseconds(2);
-	digitalWrite(realPin, HIGH);
+	digitalWrite(pin, HIGH);
 	delayMicroseconds(5);
-	digitalWrite(realPin, LOW);
+	digitalWrite(pin, LOW);
 
 	/*
 		The same pin is used to read the signal from the PING))): a HIGH
 		pulse whose duration is the time (in microseconds) from the sending
 		of the ping to the reception of its echo off of an object.
 	*/
-	pinMode(realPin, INPUT);
-	duration = pulseIn(realPin, HIGH);
+	pinMode(pin, INPUT);
+	duration = pulseIn(pin, HIGH);
 
 	//  Convert the duration into a distance
 	if (units) {
@@ -789,6 +722,121 @@ void pulseDigital(int pin, int duration) {
 	digitalWrite(pin, LOW);				// Turn the pin OFF by making the voltage LOW (0V)
 	delay(duration);					// Wait for duration ms
 }
+
+/************************************************************************/
+/*	The following routines deal with the RoboClaw 2x5 motor controller	*/
+/************************************************************************/
+
+/*
+	Display data from the RoboClaw 2x5 motor controller
+*/
+void displayRoboClawEncoderSpeed (uint8_t address, Motor *leftMotor, Motor *rightMotor) {
+	char *version;
+
+	roboClaw.ReadVersion(address, version);
+
+	console.print("RoboClaw 2x5 status (version ");
+	console.print(version);
+	console.println("): ");
+	console.println();
+
+    if (leftMotor->encoderValid) {
+		console.print("Left Motor Encoder = ");
+		console.print(leftMotor->encoder, DEC);
+		console.print(", Status =  ");
+		console.print(leftMotor->encoderStatus, HEX);
+		console.println();
+	}
+
+	if (leftMotor->speedValid) {
+		console.print("Left Motor Speed = ");
+		console.print(leftMotor->speed, DEC);
+		console.println();
+	}
+
+	if (rightMotor->encoderValid) {
+		console.print("Right Motor Encoder = ");
+		console.print(rightMotor->encoder, DEC);
+		console.print(", Status = ");
+		console.print(rightMotor->encoderStatus, HEX);
+		console.println();
+	}
+
+	if (rightMotor->speedValid) {
+		console.print("Right Motor Speed = ");
+		console.print(rightMotor->speed, DEC);
+		console.println();
+	}
+	
+	console.println("");
+}
+
+/*
+	Initialize the RoboClaw 2x5 motor controller
+*/
+void initializeRoboClaw (uint8_t address, uint16_t bps, Motor *leftMotor, Motor *rightMotor) {
+	console.println("Initializing the RoboClaw 2x5 Motor Controller and Motors");
+
+	roboClaw.begin(bps);
+
+	//	Set the RoboClaw motor constants
+	roboClaw.SetM1Constants(address , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
+	roboClaw.SetM2Constants(address , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
+
+	//	For R/C (PWM) modes
+	leftMotor->pin = 0;
+	leftMotor->pulseWidthMin = 1000;
+	leftMotor->pulseWidthMax = 2000;
+	leftMotor->pulseWidthAdjust = 0;
+
+	//	For Packet Serial modes
+	leftMotor->encoder = 0;
+	leftMotor->encoderStatus = 0;
+	leftMotor->encoderValid = false;
+	leftMotor->speed = 0;
+	leftMotor->speedStatus = 0;
+	leftMotor->speedValid = false;
+	leftMotor->forward = true;
+	leftMotor->distance = 0;
+	leftMotor->distanceValid = false;		    
+
+	//	For R/C (PWM) modes
+	rightMotor->pin = 0;
+	rightMotor->pulseWidthMin = 1000;
+	rightMotor->pulseWidthMax = 2000;
+	rightMotor->pulseWidthAdjust = 0;
+
+	//	For Packet Serial modes
+	rightMotor->encoder = 0;
+	rightMotor->encoderStatus = 0;
+	rightMotor->encoderValid = false;
+	rightMotor->speed = 0;
+	rightMotor->speedStatus = 0;
+	rightMotor->speedValid = false;
+	rightMotor->forward = true;
+	rightMotor->distance = 0;
+	rightMotor->distanceValid = false;		    
+}
+
+uint8_t readRoboClaw (uint8_t address, Motor *leftMotor, Motor *rightMotor) {
+	uint8_t errorFlag = 0;
+
+	leftMotor->encoder = roboClaw.ReadEncM1(address, &leftMotor->encoderStatus, &leftMotor->encoderValid);
+	leftMotor->speed = roboClaw.ReadSpeedM1(address, &leftMotor->speedStatus, &leftMotor->speedValid);
+
+	rightMotor->encoder = roboClaw.ReadEncM2(address, &rightMotor->encoderStatus, &rightMotor->encoderValid);
+	rightMotor->speed = roboClaw.ReadSpeedM2(address, &rightMotor->speedStatus, &rightMotor->speedValid);
+
+	return errorFlag;
+}
+
+/****************************************************/
+/*	End of RoboClaw 2x5 motor controller routines	*/
+/****************************************************/
+
+/********************************************************************/
+/*	The following routines deal with the SSC-32 servo controller	*/
+/********************************************************************/
 
 /*
     Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use BMSerial
@@ -881,6 +929,10 @@ void moveServoDegrees (BMSerial *port, Servo *servo, int servoDegrees, int moveS
 	}
 }
 
+/********************************************/
+/*	End of SSC-32 servo controller routines	*/
+/********************************************/
+
 /*
     Process error conditions
 */
@@ -904,18 +956,29 @@ void wireReceiveData (int nrBytesRead) {
 
 }
 
-void setup () {
-        uint8_t nrDisp = 0;
-        
-	//  Start up the Wire library as a slave device at address 0xE0
+void setup (void) {
+	uint8_t nrDisp = 0;
+
+	//  Start up the Wire library
 	Wire.begin();
 
 	//  Register event handlers
-//	Wire.onRequest(wireRequestEvent);
-//	Wire.onReceive(wireReceiveData);
+	Wire.onRequest(wireRequestEvent);
+	Wire.onReceive(wireReceiveData);
+
+	//  Initialize the console port (BMSerial)
+	console.begin(115200);
+	console.println("W.A.L.T.E.R. 2.0 Navigation");
+
+	//	Initialize the SSC-32 servo controller port (BMSerial)
+	ssc32.begin(115200);
+
+	//	Initialize the XBee communication port (BMSerial)
+	xbee.begin(115200);
 
 	//  Initialize the LED pin as an output.
 	pinMode(HEARTBEAT_LED, OUTPUT);
+	digitalWrite(HEARTBEAT_LED, LOW);
 
 	//	Initialize and turn off the TCS34725 RGB Color sensor's LED
 	pinMode(COLOR_SENSOR_LED, OUTPUT);
@@ -924,29 +987,12 @@ void setup () {
 	digitalWrite(COLOR_SENSOR_LED, LOW);
 
 	/*
-		Initialize BMSerial ports
-	*/
-	//  Initialize serial port communication (BMSerial)
-	console.begin(115200);
-	console.println("W.A.L.T.E.R. 2.0 Navigation");
-
-	//	Initialize the SSC-32 servo controller port
-	ssc32.begin(115200);
-	
-	//	Initialize the RoboClaw 2x5 motor controller port
-	roboClaw.begin(38400);
-
-	//	Set the RoboClaw motor constants
-	roboClaw.SetM1Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
-	roboClaw.SetM2Constants(roboClawAddress , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
-
-	displayRoboClawEncoderSpeedAccelDistance(&leftMotor, &rightMotor);
-
-	/*
 		Multiple 7 segment displays will be supported. The displays
 			should be on the breadboard, starting at the right with
 			the lowest addressed display and going to the left.
 	*/
+
+	console.println("Initializing Displays");
 
 	//  Initialize the 7-Segment display(s)
 	for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
@@ -965,9 +1011,11 @@ void setup () {
 	matrix8x8.setBrightness(1);
 	matrix8x8.setRotation(3);
 
-	Serial.println("Testing all displays..");
+	console.println("Testing Displays");
 
 	//  Test all the displays
+	Serial.println("Testing all displays..");
+
 	for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
 		sevenSeg[nrDisp].print(8888);
 		sevenSeg[nrDisp].drawColon(true);
@@ -979,14 +1027,9 @@ void setup () {
 
 	delay(2000);
 
-	//  Clear all the displays
-	for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
-		sevenSeg[nrDisp].clear();
-		sevenSeg[nrDisp].writeDisplay();
-	}
+	clearDisplays();
 
-	matrix8x8.clear();
-	matrix8x8.writeDisplay();
+	console.println("Initializing Sensors");
 
 	//	Initialize the accelerometer
 	if (! accelerometer.begin()) {
@@ -1013,27 +1056,32 @@ void setup () {
 	//	Initialize the BMP180 temperature sensor
 	if (! temperature.begin()) {
 		//  There was a problem detecting the BMP180 ... check your connections
-		console.print("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
+		console.println("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
 		while(1);
 	}
 	
 	//	Initialize the TMP006 heat sensor
 	if (! heat.begin()) {
-		console.print("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
+		console.println("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
 		while(1);
 	}
 	
 	//	Initialize the TCS34725 color sensor
 	if (! rgbColor.begin()) {
-		console.print("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
+		console.println("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
 		while(1);
 	}
 
 	//	Check to be sure the RTC is running
 	if (! clock.isrunning()) {
-		console.println("Real Time Clock is NOT running!");
+		console.println("The Real Time Clock is NOT running!");
 		while(1);
 	}
+
+	//	Initialize the RoboClaw 2x5 motor controller port
+	initializeRoboClaw(roboClawAddress, 38400, &leftMotor, &rightMotor);
+
+	console.println("Initializing Pan/Tilt");
   
 	//  Put the front pan/tilt at home position
 	moveServoPw(&ssc32, &panServo, SERVO_CENTER_MS, 0, 0, false);
@@ -1042,7 +1090,7 @@ void setup () {
 //	moveServoDegrees(&ssc32, &tiltS, moveDegrees, moveSpeed, moveTime, true);
 }
 
-void loop () {
+void loop (void) {
 	//	The current date and time from the DS1307 real time clock
 	DateTime now = clock.now();
 
@@ -1071,13 +1119,17 @@ void loop () {
 	/*
 		Code starts here
 	*/
+
+	// Pulse the heartbeat LED
+	pulseDigital(HEARTBEAT_LED, 500);
+
 	currentMinute = now.minute();
 
 	/*
 		This is code that only runs one time, to initialize
 			special cases.
 	*/
-	if ((firstLoop) && (currentMinute != lastMinute)) {
+	if (firstLoop) {
 		lastMinute = currentMinute;
 
 		firstLoop = false;
@@ -1085,11 +1137,8 @@ void loop () {
 
 	clearDisplays();
 
-	// Pulse the heartbeat LED
-	pulseDigital(HEARTBEAT_LED, 500);
-
 	//  Display the date, if it's time
-	if (displayDate && displayInformation) {
+	if (displayDate && DISPLAY_INFORMATION) {
 		displayInt = (now.month() * 100) + now.day();  
 
 		//  Month and day
@@ -1117,7 +1166,7 @@ void loop () {
 		clearDisplays();
 	}
   
-	if (displayTime && displayInformation) {
+	if (displayTime && DISPLAY_INFORMATION) {
 		if (currentHour > 12) {
 			amTime = false;
 			currentHour = currentHour - 12;
@@ -1233,7 +1282,7 @@ void loop () {
 
 		displayIMUReadings(&accelEvent, &compassEvent, celsius, fahrenheit, gyroX, gyroY, gyroZ);
 
-		if (displayTemperature && displayInformation) {
+		if (displayTemperature && DISPLAY_INFORMATION) {
 			//  Display the temperature in Fahrenheit
 			writeNumber(0, int(fahrenheit * 100), 2, false);
 			sevenSeg[0].writeDisplay();
@@ -1256,10 +1305,6 @@ void loop () {
 			temperatureMinuteCount = 0;
 			clearDisplays();
 		}
-	}
-
-	if (error == 0) {
-		clearDisplays();
 	}
 
 	/*
@@ -1286,7 +1331,7 @@ void loop () {
 
 	//	Count the minutes
 	if (currentMinute != lastMinute) {
-		if (displayInformation) {
+		if (DISPLAY_INFORMATION) {
 			dateMinuteCount += 1;
 			temperatureMinuteCount += 1;
 			timeMinuteCount += 1;
@@ -1299,9 +1344,9 @@ void loop () {
 	/*
 		Update the information display control variables
 	*/
-	if (displayInformation) {
-		displayDate = (dateMinuteCount == dateDisplayFreq);
-		displayTemperature = (temperatureMinuteCount == temperatureDisplayFreq);
-		displayTime = (timeMinuteCount == timeDisplayFreq);
+	if (DISPLAY_INFORMATION) {
+		displayDate = (dateMinuteCount == DISPLAY_DATE_FREQ_MIN);
+		displayTemperature = (temperatureMinuteCount == DISPLAY_TEMPERATURE_FREQ_MIN);
+		displayTime = (timeMinuteCount == DISPLAY_TIME_FREQ_MIN);
 	}
 }
