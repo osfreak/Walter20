@@ -30,7 +30,7 @@
 #ifndef	__NAVIGATION3_H__
 #define	__NAVIGATION3_H__
 
-#define	NAV_I2C_ADDRESS					0x50
+#define	NAV_I2C_ADDRESS					(0x50)
 
 #define	HARDWARE_SERIAL_RX_PIN			0
 #define	HARDWARE_SERIAL_TX_PIN			1
@@ -41,10 +41,10 @@
 #define	HEARTBEAT_LED       	        13
 
 //	Display constants
-#define	NUMBER_DISPLAYS					1
-#define	SEVEN_SEG_BASE_ADDR				0x70
+#define	MAX_NUMBER_7SEG_DISPLAYS		1
+#define	SEVEN_SEG_BASE_ADDR				(0x70)
 
-#define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + NUMBER_DISPLAYS
+#define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + MAX_NUMBER_7SEG_DISPLAYS
 
 /*
 	These settings control whether standard information is displayed
@@ -78,7 +78,7 @@
 
 //	RoboClaw 2x5 Motor Controller Packet Serial constants
 #define	ROBOCLAW_CONTROLLERS			1
-#define	ROBOCLAW_SERIAL_BASE_ADDR		0x80
+#define	ROBOCLAW_SERIAL_BASE_ADDR		(0x80)
 
 #define	ROBOCLAW_KP						0x00010000
 #define	ROBOCLAW_KI						0x00008000

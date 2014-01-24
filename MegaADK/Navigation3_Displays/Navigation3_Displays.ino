@@ -1,7 +1,7 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			21-Jan-2014
-	Version:		0.2.0 ALPHA
+	Date:			24-Jan-2014
+	Version:		0.2.1 ALPHA
 
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
@@ -48,6 +48,12 @@
 					I decided to keep the displays, because they can be useful for displaying status and
 						error information from the robot.
 
+					-------------------------------------------------------------------------------------
+					v0.2.1 ALPHA
+					Reorganized code, grouped similar kinds of routines together.
+					Nothing is working with the Arduino Mega ADK right now, but the display/sensor circuit
+						works perfectly with a Raspberry Pi.
+
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
 
@@ -87,7 +93,6 @@
 /*
 	Additional libraries
 */
-#include <SoftI2CMaster.h>
 
 #include "Navigation3_Displays.h"
 
@@ -170,15 +175,9 @@ byte error = 0;
 BMSerial console = BMSerial(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
 
 //  Support for multiple 7 segment displays
-Adafruit_7segment sevenSeg[NUMBER_DISPLAYS];
+Adafruit_7segment sevenSeg[MAX_NUMBER_7SEG_DISPLAYS];
 
 Adafruit_8x8matrix matrix8x8 = Adafruit_8x8matrix();
-
-/*
-    We have to use a software I2C connection, because the master controller
-      uses the main I2C bus to communicate with us.
-*/
-SoftI2CMaster i2c = SoftI2CMaster(SOFT_I2C_SDA_PIN, SOFT_I2C_SCL_PIN, 0);
 
 /*
 	BMSerial Ports - Hardware serial ports on the Arduino Mega ADK
@@ -196,14 +195,10 @@ uint8_t	roboClawBaseAddress = ROBOCLAW_SERIAL_BASE_ADDR;
 uint8_t roboClawAddress = ROBOCLAW_SERIAL_BASE_ADDR;
 char *roboClawVersion;
 
-/*
-	Initialize motors
-*/
-
 //	RoboClaw 2x5 motor M1
-Motor leftMotor;
+Motor leftMotorM1;
 //	RoboClaw 2x5 motor M2
-Motor rightMotor;
+Motor rightMotorM2;
 
 /*
     Initialize servos
@@ -351,6 +346,10 @@ static const uint8_t PROGMEM
 	Code starts here
 */
 
+/************************************************************/
+/*	Utility routines										*/
+/************************************************************/
+
 /*
     Left zero pad a numeric string
 */
@@ -370,6 +369,52 @@ String leftZeroPadString (String st, uint8_t nrPlaces) {
 }
 
 /*
+    Convert a pulse width in ms to inches
+*/
+long microsecondsToInches (long microseconds) {
+	/*
+		According to Parallax's datasheet for the PING))), there are
+			73.746 microseconds per inch (i.e. sound travels at 1130 feet per
+			second).  This gives the distance travelled by the ping, outbound
+			and return, so we divide by 2 to get the distance of the obstacle.
+		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
+	*/
+	
+	return microseconds / 74 / 2;
+}
+
+/*
+    Convert a pulse width in ms to a distance in cm
+*/
+long microsecondsToCentimeters (long microseconds) {
+	/*
+		The speed of sound is 340 m/s or 29 microseconds per centimeter.
+
+		The ping travels out and back, so to find the distance of the
+			object we take half of the distance travelled.
+	*/
+
+	return microseconds / 29 / 2;
+}
+
+/*
+    Pulses a digital pin for a duration in ms
+*/
+void pulseDigital(int pin, int duration) {
+	digitalWrite(pin, HIGH);			// Turn the ON by making the voltage HIGH (5V)
+	delay(duration);					// Wait for duration ms
+	digitalWrite(pin, LOW);				// Turn the pin OFF by making the voltage LOW (0V)
+	delay(duration);					// Wait for duration ms
+}
+
+/*
+	Convert a temperature in Celsius to Fahrenheit
+*/
+float toFahrenheit (float celsius) {
+	return (celsius * 1.8) + 32;
+}
+
+/*
     Trim trailing zeros from a numeric string
 */
 String trimTrailingZeros (String st) {
@@ -384,6 +429,162 @@ String trimTrailingZeros (String st) {
   }
 
   return newStr;
+}
+
+/********************************************************/
+/*	Initialization routines								*/
+/********************************************************/
+
+/*
+	Initialize displays
+
+	Multiple 7 segment displays will be supported. The displays
+		should be on the breadboard, starting at the right with
+		the lowest addressed display and going to the left.
+
+*/
+void initDisplays (uint8_t totalDisplays) {
+	uint8_t nrDisp = 0;
+	uint8_t address;
+
+	console.println("Initializing Displays..");
+
+	while (nrDisp < totalDisplays) {
+		console.print("(initDisplays) nrDisp = ");
+		console.print(nrDisp);
+		console.print(", totalDisplays = ");
+		console.println(totalDisplays);
+
+		console.println("(initDisplays) Initializing..");
+		sevenSeg[nrDisp] = Adafruit_7segment();
+		console.println("(initDisplays) Starting display..");
+		address = SEVEN_SEG_BASE_ADDR + nrDisp;
+		console.print("(initDisplays) address = ");
+		console.println(address, HEX);
+		sevenSeg[nrDisp].begin(address);
+		console.println("(initDisplays) Setting brightness..");
+		sevenSeg[nrDisp].setBrightness(5);
+		console.println("(initDisplays) Turning colon off..");
+		sevenSeg[nrDisp].drawColon(false);
+
+		console.println("(initDisplays) Next display..");
+		nrDisp += 1;
+	}
+
+	/*
+		The matrix display address is one higher than the last
+			seven segment display, based on the number of seven
+			seven segment displays that are configured.
+	*/
+	matrix8x8.begin(MATRIX_DISPLAY_ADDR);
+	matrix8x8.setBrightness(5);
+	matrix8x8.setRotation(3);
+}
+
+void initPanTilt (void) {
+	console.println("Initializing Pan/Tilt");
+  
+	//  Put the front pan/tilt at home position
+	moveServoPw(&ssc32, &panServo, SERVO_CENTER_MS, 0, 0, false);
+	moveServoPw(&ssc32, &tiltServo, SERVO_CENTER_MS, 0, 0, true);
+//	moveServoDegrees(&ssc32, &panS, moveDegrees, moveSpeed, moveTime, false);
+//	moveServoDegrees(&ssc32, &tiltS, moveDegrees, moveSpeed, moveTime, true);
+}
+
+/*
+	Initialize the RoboClaw 2x5 motor controller
+*/
+void initRoboClaw (uint8_t address, uint16_t bps, Motor *leftMotorM1, Motor *rightMotorM2) {
+	console.println("Initializing the RoboClaw 2x5 Motor Controller..");
+
+	roboClaw.begin(bps);
+
+	//	Set the RoboClaw motor constants
+	roboClaw.SetM1Constants(address , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
+	roboClaw.SetM2Constants(address , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
+
+	//	For R/C (PWM) modes
+	leftMotorM1->pin = 0;
+	leftMotorM1->pulseWidthMin = 1000;
+	leftMotorM1->pulseWidthMax = 2000;
+	leftMotorM1->pulseWidthAdjust = 0;
+
+	//	For Packet Serial modes
+	leftMotorM1->encoder = 0;
+	leftMotorM1->encoderStatus = 0;
+	leftMotorM1->encoderValid = false;
+	leftMotorM1->speed = 0;
+	leftMotorM1->speedStatus = 0;
+	leftMotorM1->speedValid = false;
+	leftMotorM1->forward = true;
+	leftMotorM1->distance = 0;
+	leftMotorM1->distanceValid = false;		    
+
+	//	For R/C (PWM) modes
+	rightMotorM2->pin = 0;
+	rightMotorM2->pulseWidthMin = 1000;
+	rightMotorM2->pulseWidthMax = 2000;
+	rightMotorM2->pulseWidthAdjust = 0;
+
+	//	For Packet Serial modes
+	rightMotorM2->encoder = 0;
+	rightMotorM2->encoderStatus = 0;
+	rightMotorM2->encoderValid = false;
+	rightMotorM2->speed = 0;
+	rightMotorM2->speedStatus = 0;
+	rightMotorM2->speedValid = false;
+	rightMotorM2->forward = true;
+	rightMotorM2->distance = 0;
+	rightMotorM2->distanceValid = false;		    
+}
+
+void initSensors (void) {
+	console.println("Initializing Sensors");
+
+	//	Initialize the accelerometer
+	if (! accelerometer.begin()) {
+		/* There was a problem detecting the LSM303 ... check your connections */
+		console.println("Ooops, no LSM303 detected ... Check your wiring!");
+		while(1);
+	}
+  
+	//	Initialize the magnetometer (compass) sensor
+	if (! compass.begin()) {
+		/*	There was a problem detecting the LSM303 ... check your connections */
+		console.println("Ooops, no LSM303 detected ... Check your wiring!");
+		while(1);
+	}
+
+	//	Initialize and warn if we couldn't detect the gyroscope chip
+	if (! gyro.begin(gyro.L3DS20_RANGE_250DPS)) {
+		console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
+		while (1);
+	}
+
+	//	Initialize the BMP180 temperature sensor
+	if (! temperature.begin()) {
+		//  There was a problem detecting the BMP180 ... check your connections
+		console.println("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
+		while(1);
+	}
+	
+	//	Initialize the TMP006 heat sensor
+	if (! heat.begin()) {
+		console.println("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
+		while(1);
+	}
+	
+	//	Initialize the TCS34725 color sensor
+	if (! rgbColor.begin()) {
+		console.println("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
+		while(1);
+	}
+
+	//	Check to be sure the RTC is running
+	if (! clock.isrunning()) {
+		console.println("The Real Time Clock is NOT running!");
+		while(1);
+	}
 }
   
 /*
@@ -446,48 +647,12 @@ void writeNumber (uint8_t displayNr, uint16_t value, uint8_t decimal = 2, boolea
 }
 
 /*
-    Convert a pulse width in ms to inches
-*/
-long microsecondsToInches (long microseconds) {
-	/*
-		According to Parallax's datasheet for the PING))), there are
-			73.746 microseconds per inch (i.e. sound travels at 1130 feet per
-			second).  This gives the distance travelled by the ping, outbound
-			and return, so we divide by 2 to get the distance of the obstacle.
-		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
-	*/
-	
-	return microseconds / 74 / 2;
-}
-
-/*
-    Convert a pulse width in ms to a distance in cm
-*/
-long microsecondsToCentimeters (long microseconds) {
-	/*
-		The speed of sound is 340 m/s or 29 microseconds per centimeter.
-
-		The ping travels out and back, so to find the distance of the
-			object we take half of the distance travelled.
-	*/
-
-	return microseconds / 29 / 2;
-}
-
-/*
-	Convert a temperature in Celsius to Fahrenheit
-*/
-float tempFahrenheit (float celsius) {
-	return (celsius * 1.8) + 32;
-}
-
-/*
 	Clear all the seven segment and matrix displays
 */
 void clearDisplays (void) {
 	uint8_t displayNr = 0;
 
-	while (displayNr < NUMBER_DISPLAYS) {
+	while (displayNr < MAX_NUMBER_7SEG_DISPLAYS) {
 		sevenSeg[displayNr].clear();
 		sevenSeg[displayNr].drawColon(false);
 		sevenSeg[displayNr].writeDisplay();
@@ -620,6 +785,50 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.println();
 }
 
+/*
+	Display data from the RoboClaw 2x5 motor controller
+*/
+void displayRoboClawEncoderSpeed (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
+	char *version;
+
+	roboClaw.ReadVersion(address, version);
+
+	console.print("RoboClaw 2x5 status (version ");
+	console.print(version);
+	console.println("): ");
+	console.println();
+
+    if (leftMotorM1->encoderValid) {
+		console.print("Left Motor Encoder = ");
+		console.print(leftMotorM1->encoder, DEC);
+		console.print(", Status =  ");
+		console.print(leftMotorM1->encoderStatus, HEX);
+		console.println();
+	}
+
+	if (leftMotorM1->speedValid) {
+		console.print("Left Motor Speed = ");
+		console.print(leftMotorM1->speed, DEC);
+		console.println();
+	}
+
+	if (rightMotorM2->encoderValid) {
+		console.print("Right Motor Encoder = ");
+		console.print(rightMotorM2->encoder, DEC);
+		console.print(", Status = ");
+		console.print(rightMotorM2->encoderStatus, HEX);
+		console.println();
+	}
+
+	if (rightMotorM2->speedValid) {
+		console.print("Right Motor Speed = ");
+		console.print(rightMotorM2->speed, DEC);
+		console.println();
+	}
+	
+	console.println("");
+}
+
 /* 
 	Function to read a value from a GP2Y0A21YK0F infrared distance sensor and return a
 		distance value in centimeters.
@@ -714,125 +923,19 @@ int readPING (byte sensorNr, boolean units=true) {
 }
 
 /*
-    Pulses a digital pin for a duration in ms
+	Read current data from the RoboClaw 2x5 Motor Controller
 */
-void pulseDigital(int pin, int duration) {
-	digitalWrite(pin, HIGH);			// Turn the ON by making the voltage HIGH (5V)
-	delay(duration);					// Wait for duration ms
-	digitalWrite(pin, LOW);				// Turn the pin OFF by making the voltage LOW (0V)
-	delay(duration);					// Wait for duration ms
-}
-
-/************************************************************************/
-/*	The following routines deal with the RoboClaw 2x5 motor controller	*/
-/************************************************************************/
-
-/*
-	Display data from the RoboClaw 2x5 motor controller
-*/
-void displayRoboClawEncoderSpeed (uint8_t address, Motor *leftMotor, Motor *rightMotor) {
-	char *version;
-
-	roboClaw.ReadVersion(address, version);
-
-	console.print("RoboClaw 2x5 status (version ");
-	console.print(version);
-	console.println("): ");
-	console.println();
-
-    if (leftMotor->encoderValid) {
-		console.print("Left Motor Encoder = ");
-		console.print(leftMotor->encoder, DEC);
-		console.print(", Status =  ");
-		console.print(leftMotor->encoderStatus, HEX);
-		console.println();
-	}
-
-	if (leftMotor->speedValid) {
-		console.print("Left Motor Speed = ");
-		console.print(leftMotor->speed, DEC);
-		console.println();
-	}
-
-	if (rightMotor->encoderValid) {
-		console.print("Right Motor Encoder = ");
-		console.print(rightMotor->encoder, DEC);
-		console.print(", Status = ");
-		console.print(rightMotor->encoderStatus, HEX);
-		console.println();
-	}
-
-	if (rightMotor->speedValid) {
-		console.print("Right Motor Speed = ");
-		console.print(rightMotor->speed, DEC);
-		console.println();
-	}
-	
-	console.println("");
-}
-
-/*
-	Initialize the RoboClaw 2x5 motor controller
-*/
-void initializeRoboClaw (uint8_t address, uint16_t bps, Motor *leftMotor, Motor *rightMotor) {
-	console.println("Initializing the RoboClaw 2x5 Motor Controller and Motors");
-
-	roboClaw.begin(bps);
-
-	//	Set the RoboClaw motor constants
-	roboClaw.SetM1Constants(address , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
-	roboClaw.SetM2Constants(address , ROBOCLAW_KD, ROBOCLAW_KP, ROBOCLAW_KI, ROBOCLAW_QPPS);
-
-	//	For R/C (PWM) modes
-	leftMotor->pin = 0;
-	leftMotor->pulseWidthMin = 1000;
-	leftMotor->pulseWidthMax = 2000;
-	leftMotor->pulseWidthAdjust = 0;
-
-	//	For Packet Serial modes
-	leftMotor->encoder = 0;
-	leftMotor->encoderStatus = 0;
-	leftMotor->encoderValid = false;
-	leftMotor->speed = 0;
-	leftMotor->speedStatus = 0;
-	leftMotor->speedValid = false;
-	leftMotor->forward = true;
-	leftMotor->distance = 0;
-	leftMotor->distanceValid = false;		    
-
-	//	For R/C (PWM) modes
-	rightMotor->pin = 0;
-	rightMotor->pulseWidthMin = 1000;
-	rightMotor->pulseWidthMax = 2000;
-	rightMotor->pulseWidthAdjust = 0;
-
-	//	For Packet Serial modes
-	rightMotor->encoder = 0;
-	rightMotor->encoderStatus = 0;
-	rightMotor->encoderValid = false;
-	rightMotor->speed = 0;
-	rightMotor->speedStatus = 0;
-	rightMotor->speedValid = false;
-	rightMotor->forward = true;
-	rightMotor->distance = 0;
-	rightMotor->distanceValid = false;		    
-}
-
-uint8_t readRoboClaw (uint8_t address, Motor *leftMotor, Motor *rightMotor) {
+uint8_t readRoboClaw (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
 	uint8_t errorFlag = 0;
 
-	leftMotor->encoder = roboClaw.ReadEncM1(address, &leftMotor->encoderStatus, &leftMotor->encoderValid);
-	leftMotor->speed = roboClaw.ReadSpeedM1(address, &leftMotor->speedStatus, &leftMotor->speedValid);
+	leftMotorM1->encoder = roboClaw.ReadEncM1(address, &leftMotorM1->encoderStatus, &leftMotorM1->encoderValid);
+	leftMotorM1->speed = roboClaw.ReadSpeedM1(address, &leftMotorM1->speedStatus, &leftMotorM1->speedValid);
 
-	rightMotor->encoder = roboClaw.ReadEncM2(address, &rightMotor->encoderStatus, &rightMotor->encoderValid);
-	rightMotor->speed = roboClaw.ReadSpeedM2(address, &rightMotor->speedStatus, &rightMotor->speedValid);
+	rightMotorM2->encoder = roboClaw.ReadEncM2(address, &rightMotorM2->encoderStatus, &rightMotorM2->encoderValid);
+	rightMotorM2->speed = roboClaw.ReadSpeedM2(address, &rightMotorM2->speedStatus, &rightMotorM2->speedValid);
 
 	return errorFlag;
 }
-
-/****************************************************/
-/*	End of RoboClaw 2x5 motor controller routines	*/
-/****************************************************/
 
 /********************************************************************/
 /*	The following routines deal with the SSC-32 servo controller	*/
@@ -943,38 +1046,49 @@ void processError (byte err) {
 }
 
 /*
-    Called when a request from an I2C (Wire) Master comes in
+	Test all the displays
 */
-void wireRequestEvent (void) {
-  
+void testDisplays (uint8_t totalDisplays) {
+	uint8_t nrDisp = 0;
+
+	console.println("Testing All Displays");
+
+	while (nrDisp < totalDisplays) {
+		sevenSeg[nrDisp].print(8888);
+		sevenSeg[nrDisp].drawColon(true);
+		sevenSeg[nrDisp].writeDisplay();
+
+		nrDisp += 1;
+	}
+
+	matrix8x8.drawBitmap(0, 0, allon_bmp, 8, 8, LED_ON);
+	matrix8x8.writeDisplay();
+
+	delay(2000);
+
+	clearDisplays();
 }
 
 /*
-    Called when the I2C (Wire) Slave receives data from an I2C (Wire) Master
+	Runs once to initialize everything
 */
-void wireReceiveData (int nrBytesRead) {
-
-}
-
 void setup (void) {
-	uint8_t nrDisp = 0;
-
 	//  Start up the Wire library
 	Wire.begin();
-
-	//  Register event handlers
-	Wire.onRequest(wireRequestEvent);
-	Wire.onReceive(wireReceiveData);
 
 	//  Initialize the console port (BMSerial)
 	console.begin(115200);
 	console.println("W.A.L.T.E.R. 2.0 Navigation");
+
+	console.println("Initializing Serial Ports..");
 
 	//	Initialize the SSC-32 servo controller port (BMSerial)
 	ssc32.begin(115200);
 
 	//	Initialize the XBee communication port (BMSerial)
 	xbee.begin(115200);
+
+	console.println("Initializing Digital Pins..");
 
 	//  Initialize the LED pin as an output.
 	pinMode(HEARTBEAT_LED, OUTPUT);
@@ -986,110 +1100,24 @@ void setup (void) {
 	delay(200);
 	digitalWrite(COLOR_SENSOR_LED, LOW);
 
-	/*
-		Multiple 7 segment displays will be supported. The displays
-			should be on the breadboard, starting at the right with
-			the lowest addressed display and going to the left.
-	*/
+	//	Initialize the displays
+	initDisplays(MAX_NUMBER_7SEG_DISPLAYS);
 
-	console.println("Initializing Displays");
+	//	Test the displays
+	testDisplays(MAX_NUMBER_7SEG_DISPLAYS);
 
-	//  Initialize the 7-Segment display(s)
-	for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
-		sevenSeg[nrDisp] = Adafruit_7segment();
-		sevenSeg[nrDisp].begin(SEVEN_SEG_BASE_ADDR + nrDisp);
-		sevenSeg[nrDisp].setBrightness(1);
-		sevenSeg[nrDisp].drawColon(false);
-	}
-
-	/*
-		The matrix display address is one higher than the last
-			seven segment display, based on the number of seven
-			seven segment displays that are configured.
-	*/
-	matrix8x8.begin(MATRIX_DISPLAY_ADDR);
-	matrix8x8.setBrightness(1);
-	matrix8x8.setRotation(3);
-
-	console.println("Testing Displays");
-
-	//  Test all the displays
-	Serial.println("Testing all displays..");
-
-	for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
-		sevenSeg[nrDisp].print(8888);
-		sevenSeg[nrDisp].drawColon(true);
-	}
-
-	matrix8x8.drawBitmap(0, 0, allon_bmp, 8, 8, LED_ON);
-	sevenSeg[0].writeDisplay();
-	matrix8x8.writeDisplay();
-
-	delay(2000);
-
-	clearDisplays();
-
-	console.println("Initializing Sensors");
-
-	//	Initialize the accelerometer
-	if (! accelerometer.begin()) {
-		/* There was a problem detecting the LSM303 ... check your connections */
-		console.println("Ooops, no LSM303 detected ... Check your wiring!");
-		while(1);
-	}
-  
-	//	Initialize the magnetometer (compass) sensor
-	if (! compass.begin()) {
-		/*	There was a problem detecting the LSM303 ... check your connections */
-		console.println("Ooops, no LSM303 detected ... Check your wiring!");
-		while(1);
-	}
-
-	//	Initialize and warn if we couldn't detect the gyroscope chip
-	if (! gyro.begin(gyro.L3DS20_RANGE_250DPS)) {
-//	if (!gyro.begin(gyro.L3DS20_RANGE_500DPS)) {
-//	if (!gyro.begin(gyro.L3DS20_RANGE_2000DPS)) {
-		console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
-		while (1);
-	}
-
-	//	Initialize the BMP180 temperature sensor
-	if (! temperature.begin()) {
-		//  There was a problem detecting the BMP180 ... check your connections
-		console.println("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
-		while(1);
-	}
-	
-	//	Initialize the TMP006 heat sensor
-	if (! heat.begin()) {
-		console.println("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
-		while(1);
-	}
-	
-	//	Initialize the TCS34725 color sensor
-	if (! rgbColor.begin()) {
-		console.println("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
-		while(1);
-	}
-
-	//	Check to be sure the RTC is running
-	if (! clock.isrunning()) {
-		console.println("The Real Time Clock is NOT running!");
-		while(1);
-	}
+	//	Initialize all sensors
+	initSensors();
 
 	//	Initialize the RoboClaw 2x5 motor controller port
-	initializeRoboClaw(roboClawAddress, 38400, &leftMotor, &rightMotor);
+	initRoboClaw(roboClawAddress, 38400, &leftMotorM1, &rightMotorM2);
 
-	console.println("Initializing Pan/Tilt");
-  
-	//  Put the front pan/tilt at home position
-	moveServoPw(&ssc32, &panServo, SERVO_CENTER_MS, 0, 0, false);
-	moveServoPw(&ssc32, &tiltServo, SERVO_CENTER_MS, 0, 0, true);
-//	moveServoDegrees(&ssc32, &panS, moveDegrees, moveSpeed, moveTime, false);
-//	moveServoDegrees(&ssc32, &tiltS, moveDegrees, moveSpeed, moveTime, true);
+	initPanTilt();
 }
 
+/*
+	Runs forever
+*/
 void loop (void) {
 	//	The current date and time from the DS1307 real time clock
 	DateTime now = clock.now();
@@ -1233,18 +1261,18 @@ void loop (void) {
 		for (analogPin = 0; analogPin < MAX_NUMBER_IR; analogPin++) { 
 			ir[analogPin] = readIR(analogPin);
 		}
-	}
 
-	displayIR();
+		displayIR();
+	}
 
 	//	Get readings from all the Parallax PING Ultrasonic range sensors, if any, and store them
 	if (MAX_NUMBER_PING > 0) {
 		for (digitalPin = 0; digitalPin < MAX_NUMBER_PING; digitalPin++) {
 			ping[digitalPin] = readPING(digitalPin);
 		}
-	}
 
-	displayPING();
+		displayPING();
+	}
 
 	/*
 		Put distance related reactive behaviors HERE
@@ -1275,7 +1303,7 @@ void loop (void) {
 
 		//  First we get the current temperature from the BMP180 in celsius and fahrenheit
 		temperature.getTemperature(&celsius);
-		fahrenheit = tempFahrenheit(celsius);
+		fahrenheit = toFahrenheit(celsius);
 
 		//	Convert the atmospheric pressure, SLP and temp to altitude in meters
 		altitude = temperature.pressureToAltitude(seaLevelPressure, tempEvent.pressure, celsius); 
@@ -1323,6 +1351,7 @@ void loop (void) {
 	heatData.objectTemp = heat.readObjTempC();
 	
 	displayHeatSensorReadings(&heatData);
+
 	console.println();
                                    
 	if (error != 0) {

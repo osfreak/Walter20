@@ -1,5 +1,5 @@
 /*
-  Program:      IMU_Multi_Display.ino - Inertial Measurement Unit testing, 
+  Program:      IMU_Multi_Display.ino - Inertial Measurement Unit testing,
                   with multiple 7 segment display support.
 
   Date:         08-Jan-2014
@@ -9,10 +9,10 @@
                   the Adafruit 10 DOF IMU with BMP180 temperature/preasure, LMS303DLHC
                   3-axis accelerometer/3-axis Magnetometer (compass), and L3GD20
                   3-axis Gyro that I'm tinkering with now.
-                  
+
                 This sketch will support multiple 7 segment displays using I2C
                   backpacks ( http://www.adafruit.com/products/1427 ) from Adafruit.
-                  
+
                 These are the 1.2" four digit 7 segment displays:
                   http://www.adafruit.com/products/878 (Red)
                   http://www.adafruit.com/products/879 (Yellow)
@@ -36,6 +36,8 @@
 */
 
 #include <Wire.h>
+#include <Adafruit_LEDBackpack.h>
+#include <Adafruit_GFX.h>
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP180_Unified.h>
@@ -51,7 +53,7 @@
 #include <Adafruit_TMP006.h>
 
 #include <RTClib.h>
-//#include <BMSerial.h>
+#include <BMSerial.h>
 //#include <RoboClaw.h>
 
 #include "IMU_Multi_Display.h"
@@ -61,160 +63,168 @@
     BMP180 Temperature/Barometric pressure sensor, a
     LMS303 Three-axis accelerometer, and a
     L3GD20 Gyro.
-    
+
     Adafruit product http://www.adafruit.com/products/1604
 *************************************************************/
 
 /*
     Global variables
 */
+//	Hardware Serial console (replaces Serial.* routines)
+BMSerial console(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
+
+//  Support for multiple 7 segment displays
+Adafruit_7segment sevenSeg;
 
 Adafruit_8x8matrix matrix8x8 = Adafruit_8x8matrix();
 
-Adafruit_BMP180_Unified bmp180 = Adafruit_BMP180_Unified(10085);
-RTC_DS1307 rtc;
+Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
+Adafruit_LSM303_Accel_Unified accelerometer = Adafruit_LSM303_Accel_Unified(10002);
+Adafruit_LSM303_Mag_Unified compass = Adafruit_LSM303_Mag_Unified(10003);
+Adafruit_L3GD20 gyro;
 
-//  Support for multiple 7 segment displays
-Adafruit_7segment sevenSeg[NUMBER_DISPLAYS];
+Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+Adafruit_TMP006 heat = Adafruit_TMP006();
+RTC_DS1307 clock;
 
 boolean displayDate = true;
 uint8_t dateDisplayFreq = 15;              //  How often to display the date, in minutes
 uint8_t minuteCount = 0;                   //  Count the minutes
 
 static const uint8_t PROGMEM
-  hpa_bmp[] = {
-    B10001110,
-    B10001001,
-    B11101110,
-    B10101000,
-    B00000100,
-    B00001010,
-    B00011111,
-    B00010001
-  },
-    
-  c_bmp[] = {
-    B01110000,
-    B10001000,
-    B10000000,
-    B10001000,
-    B01110000,
-    B00000000,
-    B00000000,
-    B00000000
-  },
-    
-  f_bmp[] = {
-    B11111000,
-    B10000000,
-    B11100000,
-    B10000000,
-    B10000000,
-    B00000000,
-    B00000000,
-    B00000000
-  },
-    
-  m_bmp[] = {
-    B00000000,
-    B00000000,
-    B00000000,
-    B00000000,
-    B11101110,
-    B10111010,
-    B10010010,
-    B10000010
-  },
+hpa_bmp[] = {
+  B10001110,
+  B10001001,
+  B11101110,
+  B10101000,
+  B00000100,
+  B00001010,
+  B00011111,
+  B00010001
+},
 
-  date_bmp[] = {
-    B10110110,
-    B01001001,
-    B01001001,
-    B00000100,
-    B00000100,
-    B01111100,
-    B10000100,
-    B01111100
-  },
-  
-  year_bmp[] = {
-    B00000000,
-    B10001000,
-    B10001000,
-    B01110000,
-    B00101011,
-    B00101100,
-    B00101000,
-    B00000000
-  },
-  
-  am_bmp[] = {
-    B01110000,
-    B10001010,
-    B10001010,
-    B01110100,
-    B00110110,
-    B01001001,
-    B01001001,
-    B01001001
-  },
- 
-  pm_bmp[] = {
-    B01111100,
-    B10000010,
-    B11111100,
-    B10000000,
-    B10110110,
-    B01001001,
-    B01001001,
-    B01001001
-  },
-  
-  allon_bmp[] = {
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111
-  };
+c_bmp[] = {
+  B01110000,
+  B10001000,
+  B10000000,
+  B10001000,
+  B01110000,
+  B00000000,
+  B00000000,
+  B00000000
+},
+
+f_bmp[] = {
+  B11111000,
+  B10000000,
+  B11100000,
+  B10000000,
+  B10000000,
+  B00000000,
+  B00000000,
+  B00000000
+},
+
+m_bmp[] = {
+  B00000000,
+  B00000000,
+  B00000000,
+  B00000000,
+  B11101110,
+  B10111010,
+  B10010010,
+  B10000010
+},
+
+date_bmp[] = {
+  B10110110,
+  B01001001,
+  B01001001,
+  B00000100,
+  B00000100,
+  B01111100,
+  B10000100,
+  B01111100
+},
+
+year_bmp[] = {
+  B00000000,
+  B10001000,
+  B10001000,
+  B01110000,
+  B00101011,
+  B00101100,
+  B00101000,
+  B00000000
+},
+
+am_bmp[] = {
+  B01110000,
+  B10001010,
+  B10001010,
+  B01110100,
+  B00110110,
+  B01001001,
+  B01001001,
+  B01001001
+},
+
+pm_bmp[] = {
+  B01111100,
+  B10000010,
+  B11111100,
+  B10000000,
+  B10110110,
+  B01001001,
+  B01001001,
+  B01001001
+},
+
+allon_bmp[] = {
+  B11111111,
+  B11111111,
+  B11111111,
+  B11111111,
+  B11111111,
+  B11111111,
+  B11111111,
+  B11111111
+};
 
 /*
 	Display the TCS34725 RGB color sensor readings
 */
 void displayColorSensorReadings (ColorSensor *colorData) {
-	console.print("Color Temperature: ");
-	console.print(colorData->colorTemp, DEC);
-	console.print(" K - ");
-	console.print("Lux: ");
-	console.print(colorData->lux, DEC);
-	console.print(" - ");
-	console.print("Red: ");
-	console.print(colorData->red, DEC);
-	console.print(" ");
-	console.print("Green: ");
-	console.print(colorData->green, DEC);
-	console.print(" ");
-	console.print("Blue: ");
-	console.print(colorData->blue, DEC);
-	console.print(" ");
-	console.print("C: ");
-	console.print(colorData->c, DEC);
-	console.println();
+  console.print("Color Temperature: ");
+  console.print(colorData->colorTemp, DEC);
+  console.print(" K - ");
+  console.print("Lux: ");
+  console.print(colorData->lux, DEC);
+  console.print(" - ");
+  console.print("Red: ");
+  console.print(colorData->red, DEC);
+  console.print(" ");
+  console.print("Green: ");
+  console.print(colorData->green, DEC);
+  console.print(" ");
+  console.print("Blue: ");
+  console.print(colorData->blue, DEC);
+  console.print(" ");
+  console.print("C: ");
+  console.print(colorData->c, DEC);
+  console.println();
 }
 
 /*
 	Display the TMP006 heat sensor readings
 */
 void displayHeatSensorReadings (HeatSensor *heatData) {
-	console.print("Object Temperature: ");
-	console.print(heatData->objectTemp);
-	console.println(" C");
-	console.print("Die Temperature: ");
-	console.print(heatData->dieTemp);
-	console.println(" C");
+  console.print("Object Temperature: ");
+  console.print(heatData->objectTemp);
+  console.println(" C");
+  console.print("Die Temperature: ");
+  console.print(heatData->dieTemp);
+  console.println(" C");
 }
 
 /*
@@ -223,10 +233,10 @@ void displayHeatSensorReadings (HeatSensor *heatData) {
 String leftZeroPadString (String st, uint8_t nrPlaces) {
   uint8_t i, len;
   String newStr = st;
-  
+
   if (newStr.length() < nrPlaces) {
     len = st.length();
-  
+
     for (i = len; i < nrPlaces; i++) {
       newStr = String("0" + newStr);
     }
@@ -251,7 +261,7 @@ String trimTrailingZeros (String st) {
 
   return newStr;
 }
-  
+
 /*
     Write a floating point value to the 7-Segment display, such as the 0.56"
       4 digit displays with I2C backpacks, sold by Adafruit.
@@ -273,10 +283,10 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
   long integerPart = 0, decimalPart = 0;
   double sign = 1.0, newValue = 0.0;
   uint8_t digitCount = 1, temp = 0, dotPosition = 0, totalDigits = 0;
-  uint8_t intPartLen = 0, decPartLen = 0, valueLen = 0, nrDigits = 0; 
+  uint8_t intPartLen = 0, decPartLen = 0, valueLen = 0, nrDigits = 0;
   boolean decimalPoint = false;
   String decPartStr, intPartStr, valueStr;
-  
+
   //  Store the sign
   if (value < 0) {
     sign = -1.0;
@@ -286,7 +296,7 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
 
   newValue = abs(value);
 
-  valueStr = String(newValue, DEC);  
+  valueStr = String(newValue, DEC);
   valueLen = valueStr.length();
   dotPosition = valueStr.indexOf(".");
 
@@ -297,7 +307,7 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
   decPartStr = trimTrailingZeros(valueStr.substring(dotPosition + 1));
   decPartLen = decPartStr.length();
 //  decimalPart = value - integerPart;
-  
+
   Serial.print("(writeFloat) Integer part string = '");
   Serial.print(intPartStr);
   Serial.print("' (");
@@ -321,7 +331,7 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
 
   //  Find out how many digits we have to display
   totalDigits = intPartLen + decPartLen;
-  
+
   if (sign < 0) {
     totalDigits += 1;
   }
@@ -335,7 +345,7 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
     nrDisplays = totalDigits / 4;
 
     temp = value / 100;
- 
+
     Serial.print("(writeNumber) value = ");
     Serial.print(value);
     Serial.print(", temp = ");
@@ -356,7 +366,7 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
 
     //	Set the first digit of the decimal portion
     temp = int(value / 100);
-    
+
     digitCount += 1;
     decimalPoint = ((digitCount) == decimal);
     sevenSeg[0].writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
@@ -366,7 +376,7 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
     decimalPoint = ((digitCount) == decimal);
     sevenSeg[0].writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
   }
-  
+
   return exitStatus;
 }
 */
@@ -379,41 +389,41 @@ void writeNumber (uint8_t displayNr, uint16_t value, uint8_t decimal = 2, boolea
   boolean decimalPoint = false;
 
   temp = value / 100;
-/*  
-  Serial.print("(writeNumber) value = ");
-  Serial.print(value);
-  Serial.print(", temp = ");
-  Serial.println(temp);
-*/
+  /*
+    Serial.print("(writeNumber) value = ");
+    Serial.print(value);
+    Serial.print(", temp = ");
+    Serial.println(temp);
+  */
 
   //	Set first digit of the integer portion
   if ((noblank) or (temp > 9)) {
-/*    
-    Serial.print("(writeNumber) digit = ");
-    Serial.println(digit);
-*/
+    /*
+        Serial.print("(writeNumber) digit = ");
+        Serial.println(digit);
+    */
 
     decimalPoint = ((digitCount) == decimal);
-    sevenSeg[displayNr].writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
+    sevenSeg.writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
   } else {
-    sevenSeg[displayNr].clear();
+    sevenSeg.clear();
   }
 
   //	Set the second digit of the integer portion
   digitCount += 1;
   decimalPoint = ((digitCount) == decimal);
-  sevenSeg[displayNr].writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
+  sevenSeg.writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
 
   //	Set the first digit of the decimal portion
   temp = value % 100;
   digitCount += 1;
   decimalPoint = ((digitCount) == decimal);
-  sevenSeg[displayNr].writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
+  sevenSeg.writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
 
   //	Set the second digit of the decimal portion
   digitCount += 1;
   decimalPoint = ((digitCount) == decimal);
-  sevenSeg[displayNr].writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
+  sevenSeg.writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
 }
 
 float tempFahrenheit (float celsius) {
@@ -422,11 +432,11 @@ float tempFahrenheit (float celsius) {
 
 void setup () {
   uint8_t nrDisp;
-  
+
   //  Initialize serial port communication
-  Serial.begin(115200);
-  Serial.println("IMU Time/Temperature Test");
-  
+  console.begin(115200);
+  console.println("IMU Time/Temperature Test");
+
   //  Setup and turn off the Color sensor's LED
   pinMode(COLOR_SENSOR_LED, OUTPUT);
   digitalWrite(COLOR_SENSOR_LED, LOW);
@@ -436,92 +446,93 @@ void setup () {
   */
 
   //  Initialize the 7-Segment display(s)
-  for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
-    sevenSeg[nrDisp] = Adafruit_7segment();
-    sevenSeg[nrDisp].begin(SEVEN_SEG_BASE_ADDR + nrDisp);
-    sevenSeg[nrDisp].setBrightness(1);
-    sevenSeg[nrDisp].drawColon(false);
-  }
+  //  for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
+  sevenSeg = Adafruit_7segment();
+  sevenSeg.begin(0x70);
+  sevenSeg.setBrightness(5);
+  sevenSeg.drawColon(false);
+  //  }
 
-  matrix8x8.begin(MATRIX_DISPLAY_ADDR);
-  matrix8x8.setBrightness(1);
+  matrix8x8.begin(0x71);
+  matrix8x8.setBrightness(5);
   matrix8x8.setRotation(3);
 
   Serial.println("Testing all displays..");
 
   //  Test all the displays
-  for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
-    sevenSeg[nrDisp].print(8888);
-    sevenSeg[nrDisp].drawColon(true);
-  }
+  //  for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
+  sevenSeg.print(8888);
+  sevenSeg.drawColon(true);
+  //  }
 
   matrix8x8.drawBitmap(0, 0, allon_bmp, 8, 8, LED_ON);
-  sevenSeg[0].writeDisplay();
+  sevenSeg.writeDisplay();
   matrix8x8.writeDisplay();
- 
+
   delay(2000);
 
-	//	Initialize the accelerometer
-	if (! accelerometer.begin()) {
-		/* There was a problem detecting the LSM303 ... check your connections */
-		console.println("Ooops, no LSM303 detected ... Check your wiring!");
-		while(1);
-	}
-  
-	//	Initialize the magnetometer (compass) sensor
-	if (! compass.begin()) {
-		/*	There was a problem detecting the LSM303 ... check your connections */
-		console.println("Ooops, no LSM303 detected ... Check your wiring!");
-		while(1);
-	}
+  //	Initialize the accelerometer
+  if (! accelerometer.begin()) {
+    /* There was a problem detecting the LSM303 ... check your connections */
+    console.println("Ooops, no LSM303 detected ... Check your wiring!");
+    while (1);
+  }
 
-	//	Initialize and warn if we couldn't detect the gyroscope chip
-	if (! gyro.begin(gyro.L3DS20_RANGE_250DPS)) {
-//	if (!gyro.begin(gyro.L3DS20_RANGE_500DPS)) {
-//	if (!gyro.begin(gyro.L3DS20_RANGE_2000DPS)) {
-		console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
-		while (1);
-	}
+  //	Initialize the magnetometer (compass) sensor
+  if (! compass.begin()) {
+    /*	There was a problem detecting the LSM303 ... check your connections */
+    console.println("Ooops, no LSM303 detected ... Check your wiring!");
+    while (1);
+  }
 
-	//	Initialize the BMP180 temperature sensor
-	if (! temperature.begin()) {
-		//  There was a problem detecting the BMP180 ... check your connections
-		console.print("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
-		while(1);
-	}
-	
-	//	Initialize the TMP006 heat sensor
-	if (! heat.begin()) {
-		console.print("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
-		while(1);
-	}
-	
-	//	Initialize the TCS34725 color sensor
-	if (! rgbColor.begin()) {
-		console.print("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
-		while(1);
-	}
+  //	Initialize and warn if we couldn't detect the gyroscope chip
+  if (! gyro.begin(gyro.L3DS20_RANGE_250DPS)) {
+    //	if (!gyro.begin(gyro.L3DS20_RANGE_500DPS)) {
+    //	if (!gyro.begin(gyro.L3DS20_RANGE_2000DPS)) {
+    console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
+    while (1);
+  }
 
-	//	Check to be sure the RTC is running
-	if (! clock.isrunning()) {
-		console.println("Real Time Clock is NOT running!");
-		while(1);
-	}
+  //	Initialize the BMP180 temperature sensor
+  if (! temperature.begin()) {
+    //  There was a problem detecting the BMP180 ... check your connections
+    console.print("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
+    while (1);
+  }
 
-/*  
-  writeFloat(163.90127, 2, 4, false);
-  writeFloat(-23.0159, 2, 4, false);
-*/
+  //	Initialize the TCS34725 color sensor
+//  if (! rgbColor.begin()) {
+//    console.print("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
+//    while (1);
+//  }
+
+  //	Initialize the TMP006 heat sensor
+//  if (! heat.begin()) {
+//    console.print("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
+//    while (1);
+//  }
+
+  //	Check to be sure the RTC is running
+  if (! clock.isrunning()) {
+    console.println("Real Time Clock is NOT running!");
+    while (1);
+  }
+
+  console.println("Setup Completed..");
+  /*
+    writeFloat(163.90127, 2, 4, false);
+    writeFloat(-23.0159, 2, 4, false);
+  */
 }
 
 void loop () {
   boolean amTime;
   uint8_t displayNr = 0;
-  DateTime now = rtc.now();
+  DateTime now = clock.now();
   float celsius, fahrenheit, altitude;
   float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
-  sensors_event_t bmp180event;
-  
+  sensors_event_t tempEvent;
+
   uint8_t hour = now.hour(), nrDisplays = 0;
   uint16_t displayInt;
 
@@ -532,61 +543,65 @@ void loop () {
   String currYear = leftZeroPadString(String(now.year()), 4);
   String currMinute = leftZeroPadString(String(now.minute()), 2);
   String currSecond = leftZeroPadString(String(now.second()), 2);
-  
+
   //  Clear the displays
-  for (displayNr = 0; displayNr < NUMBER_DISPLAYS; displayNr ++) {
-    sevenSeg[displayNr].clear();
-    sevenSeg[displayNr].drawColon(false);
-  }
+  //  for (displayNr = 0; displayNr < NUMBER_DISPLAYS; displayNr ++) {
+  sevenSeg.clear();
+  sevenSeg.drawColon(false);
+
+  //  }
 
   matrix8x8.clear();
 
-/*
-  Serial.print("Month = ");
-  Serial.print(now.month());
-  Serial.print(", Day = ");
-  Serial.print(now.day());
-  Serial.print(", Year = ");
-  Serial.println(now.year());
-*/
+  matrix8x8.writeDisplay();
+  sevenSeg.writeDisplay();
 
-/*  
-  Serial.print("displayInt = ");
-  Serial.println(displayInt);
-*/  
+  /*
+    Serial.print("Month = ");
+    Serial.print(now.month());
+    Serial.print(", Day = ");
+    Serial.print(now.day());
+    Serial.print(", Year = ");
+    Serial.println(now.year());
+  */
+
+  /*
+    Serial.print("displayInt = ");
+    Serial.println(displayInt);
+  */
 
   //  Display the date, if it's time
   if (displayDate) {
     displayString = String(currMonth + currDay);
 
-    displayInt = (now.month() * 100) + now.day();  
+    displayInt = (now.month() * 100) + now.day();
 
     //  Month and day
     writeNumber(0, displayInt, 0, true);
     matrix8x8.drawBitmap(0, 0, date_bmp, 8, 8, LED_ON);
 
-    sevenSeg[0].writeDisplay();
+    sevenSeg.writeDisplay();
     matrix8x8.writeDisplay();
 
     delay(5000);
 
-    sevenSeg[0].clear();
-    matrix8x8.clear();  
+    sevenSeg.clear();
+    matrix8x8.clear();
 
     //  Year
     writeNumber(0, now.year(), 0, false);
     matrix8x8.drawBitmap(0, 0, year_bmp, 8, 8, LED_ON);
 
-    sevenSeg[0].writeDisplay();
+    sevenSeg.writeDisplay();
     matrix8x8.writeDisplay();
 
     delay(5000);
-    
+
     minuteCount = 0;
   }
-  
-  sevenSeg[0].clear();
-  matrix8x8.clear();  
+
+  sevenSeg.clear();
+  matrix8x8.clear();
 
   if (hour > 12) {
     amTime = false;
@@ -594,57 +609,57 @@ void loop () {
   } else {
     amTime = true;
   }
-  
-  displayInt = (hour * 100) + now.minute();  
+
+  displayInt = (hour * 100) + now.minute();
   timeString = leftZeroPadString(String((hour * 100) + now.minute()), 4);
 
   //  Display the current time on the 7 segment display
   writeNumber(0, displayInt, 0, false);
-  sevenSeg[0].drawColon(true);
-  
+  sevenSeg.drawColon(true);
+
   matrix8x8.clear();
-  
+
   if (amTime) {
     matrix8x8.drawBitmap(0, 0, am_bmp, 8, 8, LED_ON);
   } else {
     matrix8x8.drawBitmap(0, 0, pm_bmp, 8, 8, LED_ON);
   }
-  
-  sevenSeg[0].writeDisplay();
+
+  sevenSeg.writeDisplay();
   matrix8x8.writeDisplay();
-  
+
   delay(45000);
 
-  sevenSeg[0].drawColon(false);
+  sevenSeg.drawColon(false);
 
-/*
-  //  Display the current time
-  Serial.print("Current date: ");
-  Serial.print(currMonth);
-  Serial.print('/');
-  Serial.print(currDay);
-  Serial.print('/');
-  Serial.println(currYear);
-  
-  Serial.print("Current time: (");
-  Serial.print(timeString);
-  Serial.print(") ");
-  Serial.print(currHour);
-  Serial.print(':');
-  Serial.print(currMinute);
-  Serial.print(':');
-  Serial.print(currSecond);
-  Serial.print(" ");
-  Serial.println(amPM);
-  Serial.println();
-*/
+  /*
+    //  Display the current time
+    Serial.print("Current date: ");
+    Serial.print(currMonth);
+    Serial.print('/');
+    Serial.print(currDay);
+    Serial.print('/');
+    Serial.println(currYear);
 
-  /* Get a new sensor event */ 
-  bmp180.getEvent(&bmp180event);
-  
+    Serial.print("Current time: (");
+    Serial.print(timeString);
+    Serial.print(") ");
+    Serial.print(currHour);
+    Serial.print(':');
+    Serial.print(currMinute);
+    Serial.print(':');
+    Serial.print(currSecond);
+    Serial.print(" ");
+    Serial.println(amPM);
+    Serial.println();
+  */
+
+  /* Get a new sensor event */
+  temperature.getEvent(&tempEvent);
+
   //  Display the barometric pressure in hPa
-  if (bmp180event.pressure) {
-    
+  if (tempEvent.pressure) {
+
     /* Calculating altitude with reasonable accuracy requires pressure    *
      * sea level pressure for your position at the moment the data is     *
      * converted, as well as the ambient temperature in degress           *
@@ -661,26 +676,26 @@ void loop () {
      * pressure and sea level at: http://bit.ly/16Au8ol                   */
 
     //  First we get the current temperature from the BMP180 in celsius and fahrenheit
-    bmp180.getTemperature(&celsius);
+    temperature.getTemperature(&celsius);
     fahrenheit = tempFahrenheit(celsius);
 
     //   Convert the atmospheric pressure, SLP and temp to altitude in meters
-    altitude = bmp180.pressureToAltitude(seaLevelPressure, bmp180event.pressure, celsius); 
-/*
-    //  Display the barometric pressure in hPa
-    sevenSeg.print(event.pressure);
-    sevenSeg.writeDisplay();
+    altitude = temperature.pressureToAltitude(seaLevelPressure, tempEvent.pressure, celsius);
+    /*
+        //  Display the barometric pressure in hPa
+        sevenSeg.print(event.pressure);
+        sevenSeg.writeDisplay();
 
-    matrix8x8.clear();
-    matrix8x8.drawBitmap(0, 0, hpa_bmp, 8, 8, LED_ON);
-    matrix8x8.writeDisplay();
+        matrix8x8.clear();
+        matrix8x8.drawBitmap(0, 0, hpa_bmp, 8, 8, LED_ON);
+        matrix8x8.writeDisplay();
 
-    delay(5000);
-*/
+        delay(5000);
+    */
 
     //  Display the temperature in Fahrenheit
     writeNumber(0, int(fahrenheit * 100), 2, false);
-    sevenSeg[0].writeDisplay();
+    sevenSeg.writeDisplay();
 
     matrix8x8.clear();
     matrix8x8.drawBitmap(0, 0, f_bmp, 8, 8, LED_ON);
@@ -690,52 +705,52 @@ void loop () {
 
     //  Display the temperature in Celsius
     writeNumber(0, int(celsius * 100), 2, false);
-    sevenSeg[0].writeDisplay();
+    sevenSeg.writeDisplay();
 
     matrix8x8.clear();
     matrix8x8.drawBitmap(0, 0, c_bmp, 8, 8, LED_ON);
     matrix8x8.writeDisplay();
 
-/*    
-    delay(5000);
-    
-    //  Display altitude in meters
-    sevenSeg.print(altitude);
-    sevenSeg.writeDisplay();
+    /*
+        delay(5000);
 
-    matrix8x8.clear();
-    matrix8x8.drawBitmap(0, 0, m_bmp, 8, 8, LED_ON);
-    matrix8x8.writeDisplay();
+        //  Display altitude in meters
+        sevenSeg.print(altitude);
+        sevenSeg.writeDisplay();
 
-    for (int8_t x=7; x>=-36; x--) {
-      matrix8x8.clear();
-      matrix8x8.setCursor(x,0);
-      matrix8x8.print("m");
-      matrix8x8.writeDisplay();
-      delay(100);
-    }
+        matrix8x8.clear();
+        matrix8x8.drawBitmap(0, 0, m_bmp, 8, 8, LED_ON);
+        matrix8x8.writeDisplay();
 
-    //  Display atmospheric pressue in hPa
-    Serial.print("Pressure:    ");
-    Serial.print(event.pressure);
-    Serial.println(" hPa");
-    
-    //  Display the temperature in Celsius and Fahrenheit
-    Serial.print("Temperature: ");
-    Serial.print(celsius);
-    Serial.print(" C, ");
-    Serial.print(fahrenheit);
-    Serial.println(" F");
-    
-    //  Display our altitude in meters
-    Serial.print("Altitude:    ");
-    Serial.print(altitude); 
-    Serial.println(" m");
-    Serial.println("");
-*/
+        for (int8_t x=7; x>=-36; x--) {
+          matrix8x8.clear();
+          matrix8x8.setCursor(x,0);
+          matrix8x8.print("m");
+          matrix8x8.writeDisplay();
+          delay(100);
+        }
+
+        //  Display atmospheric pressue in hPa
+        Serial.print("Pressure:    ");
+        Serial.print(event.pressure);
+        Serial.println(" hPa");
+
+        //  Display the temperature in Celsius and Fahrenheit
+        Serial.print("Temperature: ");
+        Serial.print(celsius);
+        Serial.print(" C, ");
+        Serial.print(fahrenheit);
+        Serial.println(" F");
+
+        //  Display our altitude in meters
+        Serial.print("Altitude:    ");
+        Serial.print(altitude);
+        Serial.println(" m");
+        Serial.println("");
+    */
     minuteCount += 1;
     displayDate = (minuteCount == dateDisplayFreq);
-    
+
     Serial.println();
     delay(7500);
   }

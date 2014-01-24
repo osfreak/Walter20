@@ -73,7 +73,7 @@
 */
 
 //	Hardware Serial console (replaces Serial.* routines)
-BMSerial console = BMSerial(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
+BMSerial console(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
 
 //  Support for multiple 7 segment displays
 Adafruit_7segment sevenSeg[NUMBER_DISPLAYS];
@@ -450,39 +450,51 @@ float tempFahrenheit (float celsius) {
 
 void setup () {
   uint8_t nrDisp;
+
+  //  Start up the Wire (I2C)
+  Wire.begin();
   
   //  Initialize serial port communication
-  Serial.begin(115200);
-  Serial.println("IMU Time/Temperature Test");
+  console.begin(115200);
+  console.println("IMU Time/Temperature Test");
   
   //  Setup and turn off the Color sensor's LED
   pinMode(COLOR_SENSOR_LED, OUTPUT);
   digitalWrite(COLOR_SENSOR_LED, HIGH);
-  delay(100);
+  delay(250);
   digitalWrite(COLOR_SENSOR_LED, LOW);
 
   /*
       Multiple 7 segment displays will be supported.
   */
 
+  nrDisp = 0;
+
   //  Initialize the 7-Segment display(s)
-  for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
+  while (nrDisp < NUMBER_DISPLAYS) {
     sevenSeg[nrDisp] = Adafruit_7segment();
     sevenSeg[nrDisp].begin(SEVEN_SEG_BASE_ADDR + nrDisp);
     sevenSeg[nrDisp].setBrightness(1);
     sevenSeg[nrDisp].drawColon(false);
+
+    nrDisp += 1;
   }
 
   matrix8x8.begin(MATRIX_DISPLAY_ADDR);
   matrix8x8.setBrightness(1);
   matrix8x8.setRotation(3);
 
-  Serial.println("Testing all displays..");
+  console.println("Testing all displays..");
 
   //  Test all the displays
-  for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
+  nrDisp = 0;
+
+  while (nrDisp < NUMBER_DISPLAYS) {
     sevenSeg[nrDisp].print(8888);
     sevenSeg[nrDisp].drawColon(true);
+    sevenSeg[nrDisp].writeDisplay();
+
+    nrDisp += 1;
   }
 
   matrix8x8.drawBitmap(0, 0, allon_bmp, 8, 8, LED_ON);
@@ -490,6 +502,8 @@ void setup () {
   matrix8x8.writeDisplay();
  
   delay(2000);
+  
+  console.println("Initializing Sensors..");
 
 	//	Initialize the accelerometer
 	if (! accelerometer.begin()) {
@@ -589,8 +603,6 @@ void loop () {
 
   //  Display the date, if it's time
   if (displayDate) {
-    displayString = String(currMonth + currDay);
-
     displayInt = (now.month() * 100) + now.day();  
 
     //  Month and day
@@ -628,7 +640,6 @@ void loop () {
   }
   
   displayInt = (hour * 100) + now.minute();  
-  timeString = leftZeroPadString(String((hour * 100) + now.minute()), 4);
 
   //  Display the current time on the 7 segment display
   writeNumber(0, displayInt, 0, false);
