@@ -3,8 +3,8 @@
   Program:      IMU_Multi_Display.ino - Inertial Measurement Unit testing, 
                   with multiple 7 segment display support.
 
-  Date:         20-Jan-2014
-  Version:      0.1.5 ALPHA
+  Date:         24-Jan-2014
+  Version:      0.1.6 ALPHA
 
   Purpose:      To allow experimentation and testing with various IMUs, including
                   the Adafruit 10 DOF IMU with BMP180 temperature/preasure, LMS303DLHC
@@ -20,6 +20,13 @@
                   http://www.adafruit.com/products/880 (Green)
                   http://www.adafruit.com/products/881 (Blue)
                   http://www.adafruit.com/products/1002 (White)
+
+                -----------------------------------------------------------------------
+                v0.1.6 ALPHA 24-Jan-2014
+                Merged appropriate code from Navigation3_Displays.ino - I feel a library
+                  coming on here.
+
+                ------------------------------------------------------------------------
 
   Dependencies: Adafruit libraries:
                   LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
@@ -209,40 +216,9 @@ static const uint8_t PROGMEM
     B11111111
   };
 
-/*
-	Display the TCS34725 RGB color sensor readings
-*/
-void displayColorSensorReadings (ColorSensor *colorData) {
-  console.print("Color Temperature: ");
-	console.print(colorData->colorTemp, DEC);
-	console.print(" K - ");
-	console.print("Lux: ");
-	console.print(colorData->lux, DEC);
-	console.print(" - ");
-	console.print("Red: ");
-	console.print(colorData->red, DEC);
-	console.print(" ");
-	console.print("Green: ");
-	console.print(colorData->green, DEC);
-	console.print(" ");
-	console.print("Blue: ");
-	console.print(colorData->blue, DEC);
-	console.print(" ");
-	console.print("C: ");
-	console.print(colorData->c, DEC);
-	console.println();
-}
 
-/*
-	Display the TMP006 heat sensor readings
-*/
-void displayHeatSensorReadings (HeatSensor *heatData) {
-	console.print("Object Temperature: ");
-	console.print(heatData->objectTemp);
-	console.println(" C");
-	console.print("Die Temperature: ");
-	console.print(heatData->dieTemp);
-	console.println(" C");
+float tempFahrenheit (float celsius) {
+  return (celsius * 1.8) + 32;
 }
 
 /*
@@ -279,6 +255,150 @@ String trimTrailingZeros (String st) {
 
   return newStr;
 }
+
+/*
+	Display the TCS34725 RGB color sensor readings
+*/
+void displayColorSensorReadings (ColorSensor *colorData) {
+  console.print("Color Temperature: ");
+	console.print(colorData->colorTemp, DEC);
+	console.print(" K - ");
+	console.print("Lux: ");
+	console.print(colorData->lux, DEC);
+	console.print(" - ");
+	console.print("Red: ");
+	console.print(colorData->red, DEC);
+	console.print(" ");
+	console.print("Green: ");
+	console.print(colorData->green, DEC);
+	console.print(" ");
+	console.print("Blue: ");
+	console.print(colorData->blue, DEC);
+	console.print(" ");
+	console.print("C: ");
+	console.print(colorData->c, DEC);
+	console.println();
+}
+
+/*
+	Display the TMP006 heat sensor readings
+*/
+void displayHeatSensorReadings (HeatSensor *heatData) {
+	console.print("Object Temperature: ");
+	console.print(heatData->objectTemp);
+	console.println(" C");
+	console.print("Die Temperature: ");
+	console.print(heatData->dieTemp);
+	console.println(" C");
+}
+
+/********************************************************/
+/*  Initialization routines               */
+/********************************************************/
+
+/*
+  Initialize displays
+
+  Multiple 7 segment displays will be supported. The displays
+    should be on the breadboard, starting at the right with
+    the lowest addressed display and going to the left.
+
+*/
+void initDisplays (uint8_t totalDisplays) {
+  uint8_t nrDisp = 0;
+  uint8_t address;
+
+  console.println("Initializing Displays..");
+
+  while (nrDisp < totalDisplays) {
+    sevenSeg[nrDisp] = Adafruit_7segment();
+
+    address = SEVEN_SEG_BASE_ADDR + nrDisp;
+    sevenSeg[nrDisp].begin(address);
+
+    sevenSeg[nrDisp].setBrightness(5);
+    sevenSeg[nrDisp].drawColon(false);
+
+    nrDisp += 1;
+  }
+
+  /*
+    The matrix display address is one higher than the last
+      seven segment display, based on the number of seven
+      seven segment displays that are configured.
+  */
+  matrix8x8.begin(MATRIX_DISPLAY_ADDR);
+  matrix8x8.setBrightness(5);
+
+  //  This is not needed for the mini 8x8 matrix displays
+  matrix8x8.setRotation(3);
+}
+
+/*
+  Initialize all sensors
+*/
+void initSensors (void) {
+  console.println("Initializing Sensors..");
+
+  //  Initialize the accelerometer
+  console.println("     LSM303 Accelerometer..");
+
+  if (! accelerometer.begin()) {
+    /* There was a problem detecting the LSM303 ... check your connections */
+    console.println("Ooops, no LSM303 detected ... Check your wiring!");
+    while(1);
+  }
+
+  console.println("     LSM303 Magnetometer (Compass)..");
+
+  //  Initialize the magnetometer (compass) sensor
+  if (! compass.begin()) {
+    /*  There was a problem detecting the LSM303 ... check your connections */
+    console.println("Ooops, no LSM303 detected ... Check your wiring!");
+    while(1);
+  }
+
+  console.println("     L3GD20 Gyroscope..");
+
+  //  Initialize and warn if we couldn't detect the gyroscope chip
+  if (! gyro.begin(gyro.L3DS20_RANGE_250DPS)) {
+    console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
+    while (1);
+  }
+
+  console.println("     BMP180 Temperature/Pressure..");
+
+  //  Initialize the BMP180 temperature sensor
+  if (! temperature.begin()) {
+    //  There was a problem detecting the BMP180 ... check your connections
+    console.println("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }
+  
+  console.println("     TMP006 Heat..");
+
+  //  Initialize the TMP006 heat sensor
+  if (! heat.begin()) {
+    console.println("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
+    while(1);
+  }
+  
+  console.println("     TCS34725 RGB Color..");
+
+  //  Initialize the TCS34725 color sensor
+  if (! rgbColor.begin()) {
+    console.println("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
+    while(1);
+  }
+
+  console.println("     DS1307 Real Time Clock..");
+
+  //  Check to be sure the RTC is running
+  if (! clock.isrunning()) {
+    console.println("The Real Time Clock is NOT running!");
+    while(1);
+  }
+}
   
 /*
     Write a floating point value to the 7-Segment display, such as the 0.56"
@@ -294,7 +414,7 @@ String trimTrailingZeros (String st) {
 */
 
 /*
-boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits = 4, boolean noblank = false) {
+boolean writeFloat (uint8_t displayNr, double value, uint8_t decimal = 2, uint8_t nrDisplayDigits = 4, boolean noblank = false) {
   boolean exitStatus = true;
   uint8_t nrDisplays = 1;
 
@@ -369,7 +489,7 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
     Serial.print(", temp = ");
     Serial.println(temp);
 
-    //	Set first digit of the integer portion
+    //  Set first digit of the integer portion
     if ((noblank) or (temp > 9)) {
       decimalPoint = ((digitCount) == decimal);
       sevenSeg[0].writeDigitNum(0, int(temp / 10), decimalPoint);  //  Tens
@@ -377,19 +497,19 @@ boolean writeFloat (double value, uint8_t decimal = 2, uint8_t nrDisplayDigits =
       sevenSeg[0].clear();
     }
 
-    //	Set the second digit of the integer portion
+    //  Set the second digit of the integer portion
     digitCount += 1;
     decimalPoint = ((digitCount) == decimal);
     sevenSeg[0].writeDigitNum(1, temp % 10, decimalPoint);         //  Ones
 
-    //	Set the first digit of the decimal portion
+    //  Set the first digit of the decimal portion
     temp = int(value / 100);
     
     digitCount += 1;
     decimalPoint = ((digitCount) == decimal);
     sevenSeg[0].writeDigitNum(3, int(temp / 10), decimalPoint);    //  Tens
 
-    //	Set the second digit of the decimal portion
+    //  Set the second digit of the decimal portion
     digitCount += 1;
     decimalPoint = ((digitCount) == decimal);
     sevenSeg[0].writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
@@ -444,13 +564,31 @@ void writeNumber (uint8_t displayNr, uint16_t value, uint8_t decimal = 2, boolea
   sevenSeg[displayNr].writeDigitNum(4, temp % 10, decimalPoint);         //  Ones
 }
 
-float tempFahrenheit (float celsius) {
-  return (celsius * 1.8) + 32;
+/*
+  Test all the displays
+*/
+void testDisplays (uint8_t totalDisplays) {
+  uint8_t nrDisp = 0;
+
+  console.println("Testing All Displays");
+
+  while (nrDisp < totalDisplays) {
+    sevenSeg[nrDisp].print(8888);
+    sevenSeg[nrDisp].drawColon(true);
+    sevenSeg[nrDisp].writeDisplay();
+
+    nrDisp += 1;
+  }
+
+  matrix8x8.drawBitmap(0, 0, allon_bmp, 8, 8, LED_ON);
+  matrix8x8.writeDisplay();
+
+  delay(2000);
+
+  clearDisplays();
 }
 
 void setup () {
-  uint8_t nrDisp;
-
   //  Start up the Wire (I2C)
   Wire.begin();
   
@@ -460,102 +598,17 @@ void setup () {
   
   //  Setup and turn off the Color sensor's LED
   pinMode(COLOR_SENSOR_LED, OUTPUT);
+  digitalWrite(COLOR_SENSOR_LED, LOW);
+  delay(250);
   digitalWrite(COLOR_SENSOR_LED, HIGH);
   delay(250);
   digitalWrite(COLOR_SENSOR_LED, LOW);
 
-  /*
-      Multiple 7 segment displays will be supported.
-  */
+  initDisplays(MAX_NUMBER_7SEG_DISPLAYS);
 
-  nrDisp = 0;
+  testDisplays(MAX_NUMBER_7SEG_DISPLAYS);
 
-  //  Initialize the 7-Segment display(s)
-  while (nrDisp < NUMBER_DISPLAYS) {
-    sevenSeg[nrDisp] = Adafruit_7segment();
-    sevenSeg[nrDisp].begin(SEVEN_SEG_BASE_ADDR + nrDisp);
-    sevenSeg[nrDisp].setBrightness(1);
-    sevenSeg[nrDisp].drawColon(false);
-
-    nrDisp += 1;
-  }
-
-  matrix8x8.begin(MATRIX_DISPLAY_ADDR);
-  matrix8x8.setBrightness(1);
-  matrix8x8.setRotation(3);
-
-  console.println("Testing all displays..");
-
-  //  Test all the displays
-  nrDisp = 0;
-
-  while (nrDisp < NUMBER_DISPLAYS) {
-    sevenSeg[nrDisp].print(8888);
-    sevenSeg[nrDisp].drawColon(true);
-    sevenSeg[nrDisp].writeDisplay();
-
-    nrDisp += 1;
-  }
-
-  matrix8x8.drawBitmap(0, 0, allon_bmp, 8, 8, LED_ON);
-  sevenSeg[0].writeDisplay();
-  matrix8x8.writeDisplay();
- 
-  delay(2000);
-  
-  console.println("Initializing Sensors..");
-
-	//	Initialize the accelerometer
-	if (! accelerometer.begin()) {
-		/* There was a problem detecting the LSM303 ... check your connections */
-		console.println("Ooops, no LSM303 detected ... Check your wiring!");
-		while(1);
-	}
-  
-	//	Initialize the magnetometer (compass) sensor
-	if (! compass.begin()) {
-		/*	There was a problem detecting the LSM303 ... check your connections */
-		console.println("Ooops, no LSM303 detected ... Check your wiring!");
-		while(1);
-	}
-
-	//	Initialize and warn if we couldn't detect the gyroscope chip
-	if (! gyro.begin(gyro.L3DS20_RANGE_250DPS)) {
-//	if (!gyro.begin(gyro.L3DS20_RANGE_500DPS)) {
-//	if (!gyro.begin(gyro.L3DS20_RANGE_2000DPS)) {
-		console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
-		while (1);
-	}
-
-	//	Initialize the BMP180 temperature sensor
-	if (! temperature.begin()) {
-		//  There was a problem detecting the BMP180 ... check your connections
-		console.print("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
-		while(1);
-	}
-	
-	//	Initialize the TMP006 heat sensor
-	if (! heat.begin()) {
-		console.print("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
-		while(1);
-	}
-	
-	//	Initialize the TCS34725 color sensor
-	if (! rgbColor.begin()) {
-		console.print("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
-		while(1);
-	}
-
-	//	Check to be sure the RTC is running
-	if (! clock.isrunning()) {
-		console.println("The Real Time Clock is NOT running!");
-		while(1);
-	}
-
-/*  
-  writeFloat(163.90127, 2, 4, false);
-  writeFloat(-23.0159, 2, 4, false);
-*/
+  initSensors();
 }
 
 void loop () {

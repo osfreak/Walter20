@@ -1,7 +1,7 @@
 /*
 	Program:      	W.A.L.T.E.R. 2.0, Main navigation, and reactive behaviors, header file
-	Date:         	22-Jan-2014
-	Version:      	0.2.0 ALPHA
+	Date:         	24-Jan-2014
+	Version:      	0.2.1 ALPHA
 
 	Purpose:		Added definitions for SoftwareSerial ports for the SSC-32 and RoboClaw 2x5
 

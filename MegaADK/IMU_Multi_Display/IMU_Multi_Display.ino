@@ -440,6 +440,10 @@ void setup () {
   //  Setup and turn off the Color sensor's LED
   pinMode(COLOR_SENSOR_LED, OUTPUT);
   digitalWrite(COLOR_SENSOR_LED, LOW);
+  delay(500);
+  digitalWrite(COLOR_SENSOR_LED, HIGH);
+  delay(500);
+  digitalWrite(COLOR_SENSOR_LED, LOW);
 
   /*
       Multiple 7 segment displays will be supported.
@@ -447,6 +451,8 @@ void setup () {
 
   //  Initialize the 7-Segment display(s)
   //  for (nrDisp = 0; nrDisp < NUMBER_DISPLAYS; nrDisp++) {
+  
+  console.println("Initializing displays..");
   sevenSeg = Adafruit_7segment();
   sevenSeg.begin(0x70);
   sevenSeg.setBrightness(5);
@@ -471,6 +477,15 @@ void setup () {
 
   delay(2000);
 
+  //  Clear the displays  
+  sevenSeg.clear();
+  matrix8x8.clear();
+  sevenSeg.writeDisplay();
+  matrix8x8.writeDisplay();
+
+  console.println("Initializing sensors..");
+
+  console.println("     LSM303 Accelerometer..");
   //	Initialize the accelerometer
   if (! accelerometer.begin()) {
     /* There was a problem detecting the LSM303 ... check your connections */
@@ -478,6 +493,7 @@ void setup () {
     while (1);
   }
 
+  console.println("     LSM303 Magnetometer (Compass)..");
   //	Initialize the magnetometer (compass) sensor
   if (! compass.begin()) {
     /*	There was a problem detecting the LSM303 ... check your connections */
@@ -485,13 +501,15 @@ void setup () {
     while (1);
   }
 
+  console.println("     L3DS20 Gyroscope..");
+
   //	Initialize and warn if we couldn't detect the gyroscope chip
-  if (! gyro.begin(gyro.L3DS20_RANGE_250DPS)) {
-    //	if (!gyro.begin(gyro.L3DS20_RANGE_500DPS)) {
-    //	if (!gyro.begin(gyro.L3DS20_RANGE_2000DPS)) {
+  if (! gyro.begin(gyro.L3DS20_RANGE_500DPS)) {
     console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
     while (1);
   }
+
+  console.println("     BMP180 Temperature/Preasure..");
 
   //	Initialize the BMP180 temperature sensor
   if (! temperature.begin()) {
@@ -500,21 +518,27 @@ void setup () {
     while (1);
   }
 
+  console.println("     TCS34725 RGB Color..");
+
   //	Initialize the TCS34725 color sensor
-//  if (! rgbColor.begin()) {
-//    console.print("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
-//    while (1);
-//  }
+  if (! rgbColor.begin()) {
+    console.print("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
+    while (1);
+  }
+
+  console.println("     TMP006 Heat..");
 
   //	Initialize the TMP006 heat sensor
-//  if (! heat.begin()) {
-//    console.print("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
-//    while (1);
-//  }
+  if (! heat.begin()) {
+    console.print("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
+    while (1);
+  }
+
+  console.println("     DS1307 Real Time Clock..");
 
   //	Check to be sure the RTC is running
   if (! clock.isrunning()) {
-    console.println("Real Time Clock is NOT running!");
+    console.println("The Real Time Clock is NOT running!");
     while (1);
   }
 

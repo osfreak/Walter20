@@ -19,14 +19,14 @@
 					Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
 
 					-------------------------------------------------------------------------------------
-					v0.1.7 ALPHA:
+					v0.1.7 ALPHA 13-Jan-2014
 					Added ColorSensor struct for RGB color sensor data; added code to read the TCS34725
 						RGB color and TMP006 heat sensors.
 
 					Added a control pin (COLOR_SENSOR_LED, pin 4) so the LED can be turned on and off.
 
 					-------------------------------------------------------------------------------------
-					v0.1.8 ALPHA:
+					v0.1.8 ALPHA 15-Jan 2014
 					Fixed a bug in readPING() - was not getting the duration, because code was in a comment.
 
 					Now displaying readings from all sensors in the main loop. RGB color and Heat sensors are
@@ -38,27 +38,32 @@
 						5Kb of program memory left, RAM is low, etc. I don't think I have a choice here.
 
 					-------------------------------------------------------------------------------------
-					v0.1.9 ALPHA:
+					v0.1.9 ALPHA 18-Jan-2014
 					Starting migration from the Arduino (BotBoarduino) to the Arduino Mega ADK board
 
 					-------------------------------------------------------------------------------------
-					v0.2.0 ALPHA
+					v0.2.0 ALPHA 22-Jan-2014
 					Adding display driver code from IMU_Multi_Display_Test.ino
 
 					I decided to keep the displays, because they can be useful for displaying status and
 						error information from the robot.
 
 					-------------------------------------------------------------------------------------
-					v0.2.1 ALPHA
+					v0.2.1 ALPHA 24-Jan-2014
 					Reorganized code, grouped similar kinds of routines together.
-					Nothing is working with the Arduino Mega ADK right now, but the display/sensor circuit
-						works perfectly with a Raspberry Pi.
 
+					I discovered the problem with the I2C is with the DFRobots Sensor Shield I have for the
+						Arduino Mega ADK board. I removed the shield, rewired everything, and it's all
+						working except the DS1307 real time clock. I have another one I can build when I
+						get more solder.
+
+					-------------------------------------------------------------------------------------
+					
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
 
 					Hybotics libraries:
-						BMP180 (modified from Adafruit's BMP085 library)
+						BMP180 (forked from Adafruit's BMP085 library)
 
 	Comments:		Credit is given, where applicable, for code I did not originate.
 						This sketch started out as an Adafruit tutorial for the electret
@@ -95,6 +100,7 @@
 */
 
 #include "Navigation3_Displays.h"
+#include "Pitches.h"
 
 /***************************************************************************
   This sketch uses the 10DOF IMU from Adafruit, which has a
@@ -132,7 +138,7 @@
 Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
 Adafruit_LSM303_Accel_Unified accelerometer = Adafruit_LSM303_Accel_Unified(10002);
 Adafruit_LSM303_Mag_Unified compass = Adafruit_LSM303_Mag_Unified(10003);
-Adafruit_L3GD20 gyro;
+Adafruit_L3GD20 gyroscope;
 
 Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_TMP006 heat = Adafruit_TMP006();
@@ -242,6 +248,9 @@ HeatSensor heatData = {
 	0.0
 };
 
+/*
+	Bitmaps for the drawBitMap() routine
+*/
 static const uint8_t PROGMEM
   hpa_bmp[] = {
     B10001110,
@@ -450,24 +459,12 @@ void initDisplays (uint8_t totalDisplays) {
 	console.println("Initializing Displays..");
 
 	while (nrDisp < totalDisplays) {
-		console.print("(initDisplays) nrDisp = ");
-		console.print(nrDisp);
-		console.print(", totalDisplays = ");
-		console.println(totalDisplays);
-
-		console.println("(initDisplays) Initializing..");
 		sevenSeg[nrDisp] = Adafruit_7segment();
-		console.println("(initDisplays) Starting display..");
 		address = SEVEN_SEG_BASE_ADDR + nrDisp;
-		console.print("(initDisplays) address = ");
-		console.println(address, HEX);
 		sevenSeg[nrDisp].begin(address);
-		console.println("(initDisplays) Setting brightness..");
 		sevenSeg[nrDisp].setBrightness(5);
-		console.println("(initDisplays) Turning colon off..");
 		sevenSeg[nrDisp].drawColon(false);
 
-		console.println("(initDisplays) Next display..");
 		nrDisp += 1;
 	}
 
@@ -481,6 +478,9 @@ void initDisplays (uint8_t totalDisplays) {
 	matrix8x8.setRotation(3);
 }
 
+/*
+	Set the Pan/Tilt to Home Position
+*/
 void initPanTilt (void) {
 	console.println("Initializing Pan/Tilt");
   
@@ -539,15 +539,19 @@ void initRoboClaw (uint8_t address, uint16_t bps, Motor *leftMotorM1, Motor *rig
 }
 
 void initSensors (void) {
-	console.println("Initializing Sensors");
+	console.println("Initializing Sensors..");
 
 	//	Initialize the accelerometer
+	console.println("     LSM303 Accelerometer..");
+
 	if (! accelerometer.begin()) {
 		/* There was a problem detecting the LSM303 ... check your connections */
 		console.println("Ooops, no LSM303 detected ... Check your wiring!");
 		while(1);
 	}
-  
+
+	console.println("     LSM303 Magnetometer (Compass)..");
+
 	//	Initialize the magnetometer (compass) sensor
 	if (! compass.begin()) {
 		/*	There was a problem detecting the LSM303 ... check your connections */
@@ -555,11 +559,15 @@ void initSensors (void) {
 		while(1);
 	}
 
+	console.println("     L3GD20 Gyroscope..");
+
 	//	Initialize and warn if we couldn't detect the gyroscope chip
-	if (! gyro.begin(gyro.L3DS20_RANGE_250DPS)) {
+	if (! gyroscope.begin(gyroscope.L3DS20_RANGE_250DPS)) {
 		console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
 		while (1);
 	}
+
+	console.println("     BMP180 Temperature/Pressure..");
 
 	//	Initialize the BMP180 temperature sensor
 	if (! temperature.begin()) {
@@ -568,17 +576,23 @@ void initSensors (void) {
 		while(1);
 	}
 	
+	console.println("     TMP006 Heat..");
+
 	//	Initialize the TMP006 heat sensor
 	if (! heat.begin()) {
 		console.println("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
 		while(1);
 	}
 	
+	console.println("     TCS34725 RGB Color..");
+
 	//	Initialize the TCS34725 color sensor
 	if (! rgbColor.begin()) {
 		console.println("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
 		while(1);
 	}
+
+	console.println("     DS1307 Real Time Clock..");
 
 	//	Check to be sure the RTC is running
 	if (! clock.isrunning()) {
@@ -650,14 +664,14 @@ void writeNumber (uint8_t displayNr, uint16_t value, uint8_t decimal = 2, boolea
 	Clear all the seven segment and matrix displays
 */
 void clearDisplays (void) {
-	uint8_t displayNr = 0;
+	uint8_t nrDisp = 0;
 
-	while (displayNr < MAX_NUMBER_7SEG_DISPLAYS) {
-		sevenSeg[displayNr].clear();
-		sevenSeg[displayNr].drawColon(false);
-		sevenSeg[displayNr].writeDisplay();
+	while (nrDisp < MAX_NUMBER_7SEG_DISPLAYS) {
+		sevenSeg[nrDisp].clear();
+		sevenSeg[nrDisp].drawColon(false);
+		sevenSeg[nrDisp].writeDisplay();
 
-		displayNr += 1;
+		nrDisp += 1;
 	}
 
 	matrix8x8.clear();
@@ -1096,8 +1110,10 @@ void setup (void) {
 
 	//	Initialize and turn off the TCS34725 RGB Color sensor's LED
 	pinMode(COLOR_SENSOR_LED, OUTPUT);
+	digitalWrite(COLOR_SENSOR_LED, LOW);
+	delay(250);
 	digitalWrite(COLOR_SENSOR_LED, HIGH);
-	delay(200);
+	delay(250);
 	digitalWrite(COLOR_SENSOR_LED, LOW);
 
 	//	Initialize the displays
@@ -1246,7 +1262,7 @@ void loop (void) {
 	/*
 		Get gyro readings
 	*/
-	gyro.read();
+	gyroscope.read();
 
 	gyroX = (int)gyro.data.x;
 	gyroY = (int)gyro.data.y;
