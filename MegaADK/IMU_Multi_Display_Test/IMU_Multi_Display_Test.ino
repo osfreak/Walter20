@@ -1,4 +1,3 @@
-
 /*
   Program:      IMU_Multi_Display.ino - Inertial Measurement Unit testing, 
                   with multiple 7 segment display support.
