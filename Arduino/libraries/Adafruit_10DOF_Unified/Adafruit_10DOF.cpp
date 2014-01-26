@@ -22,7 +22,7 @@
 #include <limits.h>
 #include <Math.h>
 
-#include "Adafruit_10DOF.h"
+#include "Adafruit_10DOF_Unified.h"
 
 #define PI  (3.14159265F);
 
@@ -34,26 +34,26 @@
 /***************************************************************************
  CONSTRUCTOR
  ***************************************************************************/
- 
+
 /**************************************************************************/
 /*!
     @brief  Instantiates a new Adafruit_10DOF class
 */
 /**************************************************************************/
-Adafruit_10DOF::Adafruit_10DOF(void) 
+Adafruit_10DOF::Adafruit_10DOF_Unified(void)
 {
 }
 
 /***************************************************************************
  PUBLIC FUNCTIONS
  ***************************************************************************/
- 
+
 /**************************************************************************/
 /*!
     @brief  Setups the HW
 */
 /**************************************************************************/
-bool Adafruit_10DOF::begin()
+bool Adafruit_10DOF_Unified::begin()
 {
   // Enable I2C
   Wire.begin();
@@ -72,7 +72,7 @@ bool Adafruit_10DOF::begin()
                           .pitch and .roll fields populated
     @return Returns true if the operation was successful, false if there
             was an error
-            
+
     @code
 
     bool error;
@@ -85,7 +85,7 @@ bool Adafruit_10DOF::begin()
     @endcode
 */
 /**************************************************************************/
-bool Adafruit_10DOF::accelGetOrientation(sensors_event_t *event, sensors_vec_t *orientation)
+bool Adafruit_10DOF_Unified::accelGetOrientation(sensors_event_t *event, sensors_vec_t *orientation)
 {
   /* Make sure the input is valid, not null, etc. */
   if (event == NULL) return false;
@@ -120,7 +120,6 @@ bool Adafruit_10DOF::accelGetOrientation(sensors_event_t *event, sensors_vec_t *
   return true;
 }
 
-
 /**************************************************************************/
 /*!
     @brief  Utilize the sensor data from an accelerometer to compensate
@@ -148,7 +147,7 @@ bool Adafruit_10DOF::accelGetOrientation(sensors_event_t *event, sensors_vec_t *
     @endcode
 */
 /**************************************************************************/
-bool Adafruit_10DOF::magTiltCompensation(sensors_axis_t axis, sensors_event_t *mag_event, sensors_event_t *accel_event)
+bool Adafruit_10DOF_Unified::magTiltCompensation(sensors_axis_t axis, sensors_event_t *mag_event, sensors_event_t *accel_event)
 {
   /* Make sure the input is valid, not null, etc. */
   if (mag_event == NULL) return false;
@@ -235,7 +234,7 @@ bool Adafruit_10DOF::magTiltCompensation(sensors_axis_t axis, sensors_event_t *m
     @endcode
 */
 /**************************************************************************/
-bool Adafruit_10DOF::magGetOrientation(sensors_axis_t axis, sensors_event_t *event, sensors_vec_t *orientation)
+bool Adafruit_10DOF_Unified::magGetOrientation(sensors_axis_t axis, sensors_event_t *event, sensors_vec_t *orientation)
 {
   /* Make sure the input is valid, not null, etc. */
   if (event == NULL) return false;

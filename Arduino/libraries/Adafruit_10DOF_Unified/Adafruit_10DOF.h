@@ -9,7 +9,7 @@
   please support Adafruit andopen-source hardware by purchasing products
   from Adafruit!
 
-  Written by Kevin Townsend for Adafruit Industries.  
+  Written by Kevin Townsend for Adafruit Industries.
   BSD license, all text above must be included in any redistribution
  ***************************************************************************/
 #ifndef __ADAFRUIT_10DOF_H__
@@ -36,12 +36,12 @@ typedef enum
 } sensors_axis_t;
 
 /* Driver for the the 10DOF breakout sensors */
-class Adafruit_10DOF
+class Adafruit_10DOF_Unified
 {
   public:
-    Adafruit_10DOF(void);
+    Adafruit_10DOF_Unified(void);
     bool begin(void);
-    
+
     bool  accelGetOrientation ( sensors_event_t *event, sensors_vec_t *orientation );
     bool  magTiltCompensation ( sensors_axis_t axis, sensors_event_t *mag_event, sensors_event_t *accel_event );
     bool  magGetOrientation   ( sensors_axis_t axis, sensors_event_t *event, sensors_vec_t *mag_orientation );
