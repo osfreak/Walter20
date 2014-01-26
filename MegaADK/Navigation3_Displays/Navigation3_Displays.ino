@@ -1,7 +1,7 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			24-Jan-2014
-	Version:		0.2.1 ALPHA
+	Date:			26-Jan-2014
+	Version:		0.2.2 ALPHA
 
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
@@ -58,7 +58,10 @@
 						get more solder.
 
 					-------------------------------------------------------------------------------------
-					
+					v0.2.2 ALPHA 26-Jan-2014
+					Added the Adafruit_10DOF_Unified library to get orientation information - pitch, roll,
+						and heading from the raw accelerometer and magnetometer (compass) data
+
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
 
@@ -82,7 +85,7 @@
 #include <Adafruit_BMP180_Unified.h>
 #include <Adafruit_LSM303DLHC_Unified.h>
 #include <Adafruit_L3GD20.h>
-
+#include <Adafruit_10DOF_Unified.h>
 #include <KalmanFilter.h>
 
 #include <RTClib.h>
@@ -139,6 +142,7 @@ Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
 Adafruit_LSM303_Accel_Unified accelerometer = Adafruit_LSM303_Accel_Unified(10002);
 Adafruit_LSM303_Mag_Unified compass = Adafruit_LSM303_Mag_Unified(10003);
 Adafruit_L3GD20 gyroscope;
+Adafruit_10DOF_Unified imu = Adafruit_10DOF_Unified();
 
 Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_TMP006 heat = Adafruit_TMP006();
@@ -566,6 +570,10 @@ void initSensors (void) {
 		console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
 		while (1);
 	}
+
+	console.println("     10 DOF Inertial Measurement Unit..")
+
+	imu.begin();
 
 	console.println("     BMP180 Temperature/Pressure..");
 
@@ -1159,6 +1167,7 @@ void loop (void) {
 	int gyroX, gyroY, gyroZ;
 
 	sensors_event_t accelEvent, compassEvent, tempEvent;
+	sensors_vec_t orientation;
 
 	/*
 		Code starts here
@@ -1267,6 +1276,29 @@ void loop (void) {
 	gyroX = (int)gyro.data.x;
 	gyroY = (int)gyro.data.y;
 	gyroZ = (int)gyro.data.z;
+
+	/*
+		Get pitch, roll, and heading information
+	*/
+
+	//	Calculate pitch and roll from the raw accelerometer data
+	if (imu.accelGetOrientation(&accelEvent, &orientation)) {
+		//	'orientation' should have valid .roll and .pitch fields
+		console.print(F("Roll: "));
+		console.print(orientation.roll);
+		console.print(F("; "));
+		console.print(F("Pitch: "));
+		console.print(orientation.pitch);
+		console.println(F("; "));
+	}
+
+	//	Calculate the heading using the magnetometer (compass)
+	if (imu.magGetOrientation(SENSOR_AXIS_Z, &compassEvent, &orientation)) {
+		//	'orientation' should have valid .heading data now
+		console.print(F("Heading: "));
+		console.print(orientation.heading);
+		console.println(F("; "));
+	}
 
 	/*
 		Put accelerometer and Gyro reactive behaviors HERE

@@ -2,8 +2,8 @@
   Program:      IMU_Multi_Display.ino - Inertial Measurement Unit testing, 
                   with multiple 7 segment display support.
 
-  Date:         24-Jan-2014
-  Version:      0.1.6 ALPHA
+  Date:         26-Jan-2014
+  Version:      0.1.7 ALPHA
 
   Purpose:      To allow experimentation and testing with various IMUs, including
                   the Adafruit 10 DOF IMU with BMP180 temperature/preasure, LMS303DLHC
@@ -26,6 +26,9 @@
                   coming on here.
 
                 ------------------------------------------------------------------------
+                v0.1.7 ALPHA 26-Jan-2014
+                  Added the Adafruit_10DOF_Unified library to get orientation information - pitch, roll,
+                  and heading from the raw accelerometer and magnetometer (compass) data
 
   Dependencies: Adafruit libraries:
                   LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
@@ -50,6 +53,7 @@
 #include <Adafruit_BMP180_Unified.h>
 #include <Adafruit_LSM303DLHC_Unified.h>
 #include <Adafruit_L3GD20.h>
+#include <Adafruit_10DOF_Unified.h>
 
 #include <KalmanFilter.h>
 
@@ -90,6 +94,7 @@ Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
 Adafruit_LSM303_Accel_Unified accelerometer = Adafruit_LSM303_Accel_Unified(10002);
 Adafruit_LSM303_Mag_Unified compass = Adafruit_LSM303_Mag_Unified(10003);
 Adafruit_L3GD20 gyro;
+Adafruit_10DOF_Unified imu = Adafruit_10DOF_Unified();
 
 Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_TMP006 heat = Adafruit_TMP006();
@@ -364,6 +369,10 @@ void initSensors (void) {
     console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
     while (1);
   }
+
+  console.println("     10 DOF Inertial Measurement Unit..")
+
+  imu.begin();
 
   console.println("     BMP180 Temperature/Pressure..");
 
