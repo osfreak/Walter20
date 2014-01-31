@@ -9,7 +9,7 @@
   please support Adafruit andopen-source hardware by purchasing products
   from Adafruit!
 
-  Written by Kevin Townsend for Adafruit Industries.  
+  Written by Kevin Townsend for Adafruit Industries.
   BSD license, all text above must be included in any redistribution
  ***************************************************************************/
 #if ARDUINO >= 100
@@ -40,7 +40,7 @@
     @brief  Instantiates a new Adafruit_10DOF class
 */
 /**************************************************************************/
-Adafruit_10DOF::Adafruit_10DOF_Unified(void)
+Adafruit_10DOF_Unified::Adafruit_10DOF_Unified(void)
 {
 }
 
