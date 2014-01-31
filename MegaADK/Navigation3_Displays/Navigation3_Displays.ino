@@ -571,7 +571,7 @@ void initSensors (void) {
 		while (1);
 	}
 
-	console.println("     10 DOF Inertial Measurement Unit..")
+	console.println("     10 DOF Inertial Measurement Unit..");
 
 	imu.begin();
 
@@ -947,16 +947,28 @@ int readPING (byte sensorNr, boolean units=true) {
 /*
 	Read current data from the RoboClaw 2x5 Motor Controller
 */
-uint8_t readRoboClaw (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
-	uint8_t errorFlag = 0;
+uint16_t readRoboClaw (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
+	uint16_t error = 0;
+	bool valid;
+	uint8_t status;
 
-	leftMotorM1->encoder = roboClaw.ReadEncM1(address, &leftMotorM1->encoderStatus, &leftMotorM1->encoderValid);
-	leftMotorM1->speed = roboClaw.ReadSpeedM1(address, &leftMotorM1->speedStatus, &leftMotorM1->speedValid);
+	leftMotorM1->encoder = roboClaw.ReadEncM1(address, &status, &valid);
+	leftMotorM1->encoderStatus = status;
+	leftMotorM1->encoderValid = valid;
 
-	rightMotorM2->encoder = roboClaw.ReadEncM2(address, &rightMotorM2->encoderStatus, &rightMotorM2->encoderValid);
-	rightMotorM2->speed = roboClaw.ReadSpeedM2(address, &rightMotorM2->speedStatus, &rightMotorM2->speedValid);
+	leftMotorM1->speed = roboClaw.ReadSpeedM1(address, &status, &valid);
+	leftMotorM1->speedStatus = status;
+	leftMotorM1->speedValid = valid;
 
-	return errorFlag;
+	rightMotorM2->encoder = roboClaw.ReadEncM2(address, &status, &valid);
+	rightMotorM2->encoderStatus = status;
+	rightMotorM2->encoderValid = valid;
+
+	rightMotorM2->speed = roboClaw.ReadSpeedM2(address, &status, &valid);
+	rightMotorM2->speedStatus = status;
+	rightMotorM2->speedValid = valid;
+
+	return error;
 }
 
 /********************************************************************/
@@ -1273,9 +1285,9 @@ void loop (void) {
 	*/
 	gyroscope.read();
 
-	gyroX = (int)gyro.data.x;
-	gyroY = (int)gyro.data.y;
-	gyroZ = (int)gyro.data.z;
+	gyroX = (int)gyroscope.data.x;
+	gyroY = (int)gyroscope.data.y;
+	gyroZ = (int)gyroscope.data.z;
 
 	/*
 		Get pitch, roll, and heading information
