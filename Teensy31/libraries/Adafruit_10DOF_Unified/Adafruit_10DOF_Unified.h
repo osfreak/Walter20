@@ -24,7 +24,7 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LSM303DLHC_Unified.h>
 #include <Adafruit_BMP085_Unified.h>
-#include <Adafruit_L3GD20_Unified.h>
+#include <Adafruit_L3GD20.h>
 #include <Wire.h>
 
 /** Sensor axis */

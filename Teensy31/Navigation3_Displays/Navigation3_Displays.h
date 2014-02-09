@@ -36,7 +36,7 @@
 #define	HARDWARE_SERIAL_RX_PIN			0
 #define	HARDWARE_SERIAL_TX_PIN			1
 
-#define	COLOR_SENSOR_LED				53
+#define	COLOR_SENSOR_LED				4
 
 #define	SPEAKER_OUT						5
 #define	HEARTBEAT_LED       	        13

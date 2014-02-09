@@ -85,19 +85,21 @@
 */
 
 #include <Wire.h>
+#include <HardwareSerial.h>
 #include <Adafruit_LEDBackpack.h>
 #include <Adafruit_GFX.h>
 
 #include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085_Unified.h>
 #include <Adafruit_BMP180_Unified.h>
 #include <Adafruit_LSM303DLHC_Unified.h>
 #include <Adafruit_L3GD20.h>
-#include <Adafruit_10DOF_Unified.h>
+//#include <Adafruit_10DOF_Unified.h>
 #include <KalmanFilter.h>
 
 #include <RTClib.h>
-#include <BMSerial.h>
-#include <RoboClaw.h>
+//#include <BMSerial.h>
+//#include <RoboClaw.h>
 
 /*
 	Additional sensors
@@ -149,7 +151,7 @@ Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
 Adafruit_LSM303_Accel_Unified accelerometer = Adafruit_LSM303_Accel_Unified(10002);
 Adafruit_LSM303_Mag_Unified compass = Adafruit_LSM303_Mag_Unified(10003);
 Adafruit_L3GD20 gyroscope;
-Adafruit_10DOF_Unified imu = Adafruit_10DOF_Unified();
+//Adafruit_10DOF_Unified imu = Adafruit_10DOF_Unified();
 
 Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_TMP006 heat = Adafruit_TMP006();
@@ -188,8 +190,8 @@ boolean firstLoop = true;
 //	Error control
 byte error = 0;
 
-//	Hardware Serial console (replaces Serial.* routines)
-BMSerial console = BMSerial(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
+//	Hardware Serial console
+HardwareSerial console = HardwareSerial();
 
 //  Support for multiple 7 segment displays
 Adafruit_7segment sevenSeg[MAX_NUMBER_7SEG_DISPLAYS];
@@ -197,14 +199,14 @@ Adafruit_7segment sevenSeg[MAX_NUMBER_7SEG_DISPLAYS];
 Adafruit_8x8matrix matrix8x8 = Adafruit_8x8matrix();
 
 /*
-	BMSerial Ports - Hardware serial ports on the Arduino Mega ADK
+	Hardware serial ports on the Teensy 3.1
 */
-//	Hardware Serial1
-BMSerial ssc32(SERIAL_SSC32_RX_PIN, SERIAL_SSC32_TX_PIN);
 //	Hardware Serial2
-RoboClaw roboClaw(SERIAL_ROBOCLAW_RX_PIN, SERIAL_ROBOCLAW_TX_PIN);
+HardwareSerial2 ssc32 = HardwareSerial2();
 //	Hardware Serial3
-BMSerial xbee(SERIAL_XBEE_RX_PIN, SERIAL_XBEE_TX_PIN);
+HardwareSerial3 roboClaw = HardwareSerial3();
+//	Hardware Serial3 - Going to have to be SoftwareSerial
+//HardwareSerial3 xbee = HardwareSerial3();
 
 //	We only have one RoboClaw 2x5 right now
 uint8_t roboClawControllers = ROBOCLAW_CONTROLLERS - 1;
@@ -397,7 +399,8 @@ long microsecondsToInches (long microseconds) {
 			73.746 microseconds per inch (i.e. sound travels at 1130 feet per
 			second).  This gives the distance travelled by the ping, outbound
 			and return, so we divide by 2 to get the distance of the obstacle.
-		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
+
+			See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
 	*/
 	
 	return microseconds / 74 / 2;
@@ -496,8 +499,8 @@ void initPanTilt (void) {
 	console.println("Initializing Pan/Tilt");
   
 	//  Put the front pan/tilt at home position
-	moveServoPw(&ssc32, &panServo, SERVO_CENTER_MS, 0, 0, false);
-	moveServoPw(&ssc32, &tiltServo, SERVO_CENTER_MS, 0, 0, true);
+	moveServoPw(&panServo, SERVO_CENTER_MS, 0, 0, false);
+	moveServoPw(&tiltServo, SERVO_CENTER_MS, 0, 0, true);
 //	moveServoDegrees(&ssc32, &panS, moveDegrees, moveSpeed, moveTime, false);
 //	moveServoDegrees(&ssc32, &tiltS, moveDegrees, moveSpeed, moveTime, true);
 }
@@ -505,6 +508,8 @@ void initPanTilt (void) {
 /*
 	Initialize the RoboClaw 2x5 motor controller
 */
+
+/*
 void initRoboClaw (uint8_t address, uint16_t bps, Motor *leftMotorM1, Motor *rightMotorM2) {
 	console.println("Initializing the RoboClaw 2x5 Motor Controller..");
 
@@ -548,6 +553,7 @@ void initRoboClaw (uint8_t address, uint16_t bps, Motor *leftMotorM1, Motor *rig
 	rightMotorM2->distance = 0;
 	rightMotorM2->distanceValid = false;		    
 }
+*/
 
 void initSensors (void) {
 	console.println("Initializing Sensors..");
@@ -569,18 +575,6 @@ void initSensors (void) {
 		console.println("Ooops, no LSM303 detected ... Check your wiring!");
 		while(1);
 	}
-
-	console.println("     L3GD20 Gyroscope..");
-
-	//	Initialize and warn if we couldn't detect the gyroscope chip
-	if (! gyroscope.begin(gyroscope.L3DS20_RANGE_250DPS)) {
-		console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
-		while (1);
-	}
-
-	console.println("     10 DOF Inertial Measurement Unit..");
-
-	imu.begin();
 
 	console.println("     BMP180 Temperature/Pressure..");
 
@@ -781,7 +775,8 @@ void displayPING (void) {
 */
 void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEvent, float celsius, float fahrenheit, int gyroX, int gyroY, int gyroZ) {
 	//	Accelerometer readings
-	console.print("Accelerometer: X = ");
+	console.println("Accelerometer Readings:");
+	console.print("X = ");
 	console.print(accelEvent->acceleration.x);
 	console.print(", Y = ");
 	console.print(accelEvent->acceleration.y);
@@ -789,22 +784,25 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.println(accelEvent->acceleration.z);
 
 	//	Magnetometer (Compass) readings
-	console.print("Magnetometer (Compass): X = ");
+	console.println("Magnetometer (Compass) Readings:");
+	console.print("X = ");
 	console.print(compassEvent->magnetic.x);
 	console.print(", Y = ");
 	console.print(compassEvent->magnetic.y);
 	console.print(", Z = ");
 	console.println(compassEvent->magnetic.z);
-
+/*
 	//	Gyro readings
-	console.print("Gyro: X = ");
+	console.println("Gyro Readings:");
+	console.print("X = ");
 	console.print(gyroX);
 	console.print(", Y = ");
 	console.print(gyroY);
 	console.print(", Z = ");
 	console.println(gyroZ);
-
-	//	Temperature readings
+*/
+	//	Temperature and Pressure readings
+	console.println("Temperature and Pressure Readings:");
 	console.print("Room Temperature = ");
 	console.print(fahrenheit);
 	console.print(" F, ");
@@ -817,6 +815,8 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 /*
 	Display data from the RoboClaw 2x5 motor controller
 */
+
+/*
 void displayRoboClawEncoderSpeed (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
 	char *version;
 
@@ -857,6 +857,7 @@ void displayRoboClawEncoderSpeed (uint8_t address, Motor *leftMotorM1, Motor *ri
 	
 	console.println("");
 }
+*/
 
 /* 
 	Function to read a value from a GP2Y0A21YK0F infrared distance sensor and return a
@@ -954,6 +955,8 @@ int readPING (byte sensorNr, boolean units=true) {
 /*
 	Read current data from the RoboClaw 2x5 Motor Controller
 */
+
+/*
 uint16_t readRoboClaw (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
 	uint16_t error = 0;
 	bool valid;
@@ -977,6 +980,7 @@ uint16_t readRoboClaw (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2)
 
 	return error;
 }
+*/
 
 /********************************************************************/
 /*	The following routines deal with the SSC-32 servo controller	*/
@@ -985,14 +989,14 @@ uint16_t readRoboClaw (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2)
 /*
     Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use BMSerial
 */
-void moveServoPw (BMSerial *port, Servo *servo, int servoPosition, int moveSpeed, int moveTime, boolean term) {
+void moveServoPw (Servo *servo, int servoPosition, int moveSpeed, int moveTime, boolean term) {
 	servo->error = 0;
   
 	if ((servoPosition >= servo->minPulse) && (servoPosition <= servo->maxPulse)) {
-		port->print("#");
-		port->print(servo->pin);
-		port->print(" P");
-		port->print(servoPosition + servo->offset);
+		Serial2.print("#");
+		Serial2.print(servo->pin);
+		Serial2.print(" P");
+		Serial2.print(servoPosition + servo->offset);
 
 		servo->msPulse = servoPosition;
 		servo->angle = ((servoPosition - SERVO_CENTER_MS) / 10);
@@ -1007,18 +1011,18 @@ void moveServoPw (BMSerial *port, Servo *servo, int servoPosition, int moveSpeed
 	if (servo->error == 0) {
 		//  Add servo move speed
 		if (moveSpeed != 0) {
-			port->print(" S");
-			port->print(moveSpeed);
+			Serial2.print(" S");
+			Serial2.print(moveSpeed);
 		}
     
 		//  Terminate the command
 		if (term) {
 			if (moveTime != 0) {
-				port->print(" T");
-				port->print(moveTime);
+				Serial2.print(" T");
+				Serial2.print(moveTime);
 			}
 
-			port->println();
+			Serial2.println();
 		}
   	}
 }
@@ -1026,7 +1030,7 @@ void moveServoPw (BMSerial *port, Servo *servo, int servoPosition, int moveSpeed
 /*
     Move a servo by degrees (-90 to 90) or (0 - 180) - Modified to use BMSerial
 */
-void moveServoDegrees (BMSerial *port, Servo *servo, int servoDegrees, int moveSpeed, int moveTime, boolean term) {
+void moveServoDegrees (Servo *servo, int servoDegrees, int moveSpeed, int moveTime, boolean term) {
 	int servoPulse = SERVO_CENTER_MS + servo->offset;
 
 	servo->error = 0;
@@ -1039,10 +1043,10 @@ void moveServoDegrees (BMSerial *port, Servo *servo, int servoDegrees, int moveS
 	}
 
 	if ((servoPulse >= servo->minPulse) && (servoPulse <= servo->maxPulse)) {
-		port->print("#");
-		port->print(servo->pin);
-		port->print(" P");
-		port->print(servoPulse);
+		Serial2.print("#");
+		Serial2.print(servo->pin);
+		Serial2.print(" P");
+		Serial2.print(servoPulse);
 
 		servo->msPulse = (servoDegrees * 10) + SERVO_CENTER_MS;
 		servo->angle = servoDegrees;
@@ -1057,18 +1061,18 @@ void moveServoDegrees (BMSerial *port, Servo *servo, int servoDegrees, int moveS
 	if (servo->error == 0) {
 		//  Add servo move speed
 		if (moveSpeed != 0) {
-			port->print(" S");
-			port->print(moveSpeed);
+			Serial2.print(" S");
+			Serial2.print(moveSpeed);
 		}
     
 		//  Terminate the command
 		if (term) {
 			if (moveTime != 0) {
-				port->print(" T");
-				port->print(moveTime);
+				Serial2.print(" T");
+				Serial2.print(moveTime);
 			}
       
-			port->println();
+			Serial2.println();
 		}
 	}
 }
@@ -1127,7 +1131,7 @@ void setup (void) {
 	ssc32.begin(115200);
 
 	//	Initialize the XBee communication port (BMSerial)
-	xbee.begin(115200);
+//	xbee.begin(115200);
 
 	console.println("Initializing Digital Pins..");
 
@@ -1152,9 +1156,15 @@ void setup (void) {
 	//	Initialize all sensors
 	initSensors();
 
+/*
+	Can not do anything with the RoboClaw 2x5 Motor Controller right now. That
+		library is going to have to be modified to use a hardware serial port
+		on the Teensy 3.1, which should not be too big of an issue.
+*/
+/*
 	//	Initialize the RoboClaw 2x5 motor controller port
 	initRoboClaw(roboClawAddress, 38400, &leftMotorM1, &rightMotorM2);
-
+*/
 	initPanTilt();
 }
 
@@ -1290,16 +1300,19 @@ void loop (void) {
 	/*
 		Get gyro readings
 	*/
+
+/*
 	gyroscope.read();
 
 	gyroX = (int)gyroscope.data.x;
 	gyroY = (int)gyroscope.data.y;
 	gyroZ = (int)gyroscope.data.z;
-
+*/
 	/*
 		Get pitch, roll, and heading information
 	*/
 
+/*
 	//	Calculate pitch and roll from the raw accelerometer data
 	if (imu.accelGetOrientation(&accelEvent, &orientation)) {
 		//	'orientation' should have valid .roll and .pitch fields
@@ -1318,7 +1331,7 @@ void loop (void) {
 		console.print(orientation.heading);
 		console.println(F("; "));
 	}
-
+*/
 	/*
 		Put accelerometer and Gyro reactive behaviors HERE
 	*/
@@ -1375,8 +1388,6 @@ void loop (void) {
 		//	Convert the atmospheric pressure, SLP and temp to altitude in meters
 		altitude = temperature.pressureToAltitude(seaLevelPressure, tempEvent.pressure, celsius); 
 
-		displayIMUReadings(&accelEvent, &compassEvent, celsius, fahrenheit, gyroX, gyroY, gyroZ);
-
 		if (displayTemperature && DISPLAY_INFORMATION) {
 			//  Display the temperature in Fahrenheit
 			writeNumber(0, int(fahrenheit * 100), 2, false);
@@ -1401,6 +1412,8 @@ void loop (void) {
 			clearDisplays();
 		}
 	}
+
+	displayIMUReadings(&accelEvent, &compassEvent, celsius, fahrenheit, gyroX, gyroY, gyroZ);
 
 	/*
 		Read the TCS34725 RGB color sensor
