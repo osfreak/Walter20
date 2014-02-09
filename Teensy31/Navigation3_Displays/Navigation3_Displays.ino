@@ -1,105 +1,109 @@
 /*
-	Program:	W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:		08-Feb-2014
-	Version:	0.2.3 ALPHA
+	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
+	Date:			09-Feb-2014
+	Version:		0.2.3 Teensy 3.1 ALPHA
 
-	Purpose:	Added two enum definitions for SensorLocation and MotorLocation. I'm
-				not sure the sensor locations are going to work out.
+	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
+						not sure the sensor locations are going to work out.
 
-			Added BMSerial ports for the SSC-32 and RoboClaw 2x5 controllers;
-				defined a Motor struct to hold information about motors; added motor
-				definitions and initialization; modified moveServoPw() and moveServoDegrees()
-				to work with a BMSerial port.
+					Added BMSerial ports for the SSC-32 and RoboClaw 2x5 controllers;
+						defined a Motor struct to hold information about motors; added motor
+						definitions and initialization; modified moveServoPw() and moveServoDegrees()
+						to work with a BMSerial port.
 
-			Converted to using a BMSerial() port for the hardware serial console port
+					Converted to using a BMSerial() port for the hardware serial console port
 
-			Converted to running the RoboClaw 2x5 motor controller in Packet Serial mode,
-				with all the goodies - encoders, speed, acceleration, and distance.
+					Converted to running the RoboClaw 2x5 motor controller in Packet Serial mode,
+						with all the goodies - encoders, speed, acceleration, and distance.
 
-			Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
+					Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
 
-			-------------------------------------------------------------------------------------
-			v0.1.7 ALPHA 13-Jan-2014
-			Added ColorSensor struct for RGB color sensor data; added code to read the TCS34725
-				RGB color and TMP006 heat sensors.
+					-------------------------------------------------------------------------------------
+					v0.1.7 ALPHA 13-Jan-2014
+					Added ColorSensor struct for RGB color sensor data; added code to read the TCS34725
+						RGB color and TMP006 heat sensors.
 
-			Added a control pin (COLOR_SENSOR_LED, pin 4) so the LED can be turned on and off.
+					Added a control pin (COLOR_SENSOR_LED, pin 4) so the LED can be turned on and off.
 
-			-------------------------------------------------------------------------------------
-			v0.1.8 ALPHA 15-Jan 2014
-			Fixed a bug in readPING() - was not getting the duration, because code was in a comment.
+					-------------------------------------------------------------------------------------
+					v0.1.8 ALPHA 15-Jan 2014
+					Fixed a bug in readPING() - was not getting the duration, because code was in a comment.
 
-			Now displaying readings from all sensors in the main loop. RGB color and Heat sensors are
-				working. IMU seems to be working so far - still need to get useful information from it.
+					Now displaying readings from all sensors in the main loop. RGB color and Heat sensors are
+						working. IMU seems to be working so far - still need to get useful information from it.
 
-			The SSC-32 doesn't seem to like SoftwareSerial ports.
+					The SSC-32 doesn't seem to like SoftwareSerial ports.
 
-			I'm thinking more seriously about moving to the Arduino Mega ADK board. There is only about
-				5Kb of program memory left, RAM is low, etc. I don't think I have a choice here.
+					I'm thinking more seriously about moving to the Arduino Mega ADK board. There is only about
+						5Kb of program memory left, RAM is low, etc. I don't think I have a choice here.
 
-			-------------------------------------------------------------------------------------
-			v0.1.9 ALPHA 18-Jan-2014
-			Starting migration from the Arduino (BotBoarduino) to the Arduino Mega ADK board
+					-------------------------------------------------------------------------------------
+					v0.1.9 ALPHA 18-Jan-2014
+					Starting migration from the Arduino (BotBoarduino) to the Arduino Mega ADK board
 
-			-------------------------------------------------------------------------------------
-			v0.2.0 ALPHA 22-Jan-2014
-			Adding display driver code from IMU_Multi_Display_Test.ino
+					-------------------------------------------------------------------------------------
+					v0.2.0 ALPHA 22-Jan-2014
+					Adding display driver code from IMU_Multi_Display_Test.ino
 
-			I decided to keep the displays, because they can be useful for displaying status and
-				error information from the robot.
+					I decided to keep the displays, because they can be useful for displaying status and
+						error information from the robot.
 
-			-------------------------------------------------------------------------------------
-			v0.2.1 ALPHA 24-Jan-2014
-			Reorganized code, grouped similar kinds of routines together.
+					-------------------------------------------------------------------------------------
+					v0.2.1 ALPHA 24-Jan-2014
+					Reorganized code, grouped similar kinds of routines together.
 
-			I discovered the problem with the I2C is with the DFRobots Sensor Shield I have for the
-				Arduino Mega ADK board. I removed the shield, rewired everything, and it's all
-				working except the DS1307 real time clock. I have another one I can build when I
-				get more solder.
+					I discovered the problem with the I2C is with the DFRobots Sensor Shield I have for the
+						Arduino Mega ADK board. I removed the shield, rewired everything, and it's all
+						working except the DS1307 real time clock. I have another one I can build when I
+						get more solder.
 
-			-------------------------------------------------------------------------------------
-			v0.2.2 ALPHA 26-Jan-2014
-			Added the Adafruit_10DOF_Unified library to get orientation information - pitch, roll,
-				and heading from the raw accelerometer and magnetometer (compass) data
+					-------------------------------------------------------------------------------------
+					v0.2.2 ALPHA 26-Jan-2014
+					Added the Adafruit_10DOF_Unified library to get orientation information - pitch, roll,
+						and heading from the raw accelerometer and magnetometer (compass) data
 
-			-------------------------------------------------------------------------------------
-			v0.2.3 ALPHA 08-Feb-2014
-			Converting everything to run on a Teensy 3.1 by PJRC
-				http://pjrc.com/store/teensy31.html
+					-------------------------------------------------------------------------------------
+					v0.2.3 Teensy 3.1 ALPHA 09-Feb-2014:
+					Beginning converstion to run on the Teensy 3.1 board:
 
-			-------------------------------------------------------------------------------------
+					Set header definitions for the Teensy 3.1 hardware serial ports
+
+					-------------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
-				LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
+						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
 
-			Hybotics libraries:
-				BMP180 (forked from Adafruit's BMP085 library)
+					Hybotics libraries:
+						BMP180 (forked from Adafruit's BMP085 library)
 
-	Comments:	Credit is given, where applicable, for code I did not originate.
-				This sketch started out as an Adafruit tutorial for the electret
-				microphones being used for sound detection. I've also pulled
-				code for the GP2Y0A21YK0F IR and PING sensors from the Arduino
-				Playground, which I have modified to suit my needs.
+	Comments:		Credit is given, where applicable, for code I did not originate.
+						This sketch started out as an Adafruit tutorial for the electret
+						microphones being used for sound detection. I've also pulled
+						code for the GP2Y0A21YK0F IR and PING sensors from the Arduino
+						Playground, which I have modified to suit my needs.
 
-			Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
+					Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
 
 #include <Wire.h>
-#include <HardwareSerial.h>
 #include <Adafruit_LEDBackpack.h>
 #include <Adafruit_GFX.h>
 
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BMP085_Unified.h>
 #include <Adafruit_BMP180_Unified.h>
 #include <Adafruit_LSM303DLHC_Unified.h>
 #include <Adafruit_L3GD20.h>
-//#include <Adafruit_10DOF_Unified.h>
+#include <Adafruit_10DOF_Unified.h>
 #include <KalmanFilter.h>
 
 #include <RTClib.h>
-//#include <BMSerial.h>
-//#include <RoboClaw.h>
+/*
+	Removing all BMSerial and RoboClaw stuff for now. This is going to require
+		more work to get setup for the Teensy 3.1
+
+#include <BMSerial.h>
+#include <RoboClaw.h>
+*/
 
 /*
 	Additional sensors
@@ -151,7 +155,7 @@ Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
 Adafruit_LSM303_Accel_Unified accelerometer = Adafruit_LSM303_Accel_Unified(10002);
 Adafruit_LSM303_Mag_Unified compass = Adafruit_LSM303_Mag_Unified(10003);
 Adafruit_L3GD20 gyroscope;
-//Adafruit_10DOF_Unified imu = Adafruit_10DOF_Unified();
+Adafruit_10DOF_Unified imu = Adafruit_10DOF_Unified();
 
 Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_TMP006 heat = Adafruit_TMP006();
@@ -165,6 +169,7 @@ RTC_DS1307 clock;
 	These variables control the display of various information
 		on the seven segment and matrix displays.
 */
+
 //	Date display
 boolean displayDate = true;
 uint8_t dateMinuteCount = 0;
@@ -190,7 +195,7 @@ boolean firstLoop = true;
 //	Error control
 byte error = 0;
 
-//	Hardware Serial console
+//	Hardware Serial console (replaces Serial.* routines)
 HardwareSerial console = HardwareSerial();
 
 //  Support for multiple 7 segment displays
@@ -199,14 +204,23 @@ Adafruit_7segment sevenSeg[MAX_NUMBER_7SEG_DISPLAYS];
 Adafruit_8x8matrix matrix8x8 = Adafruit_8x8matrix();
 
 /*
-	Hardware serial ports on the Teensy 3.1
+	BMSerial Ports - Hardware serial ports on the Arduino Mega ADK
 */
 //	Hardware Serial2
 HardwareSerial2 ssc32 = HardwareSerial2();
+
+/*
 //	Hardware Serial3
-HardwareSerial3 roboClaw = HardwareSerial3();
-//	Hardware Serial3 - Going to have to be SoftwareSerial
-//HardwareSerial3 xbee = HardwareSerial3();
+RoboClaw roboClaw(SERIAL_ROBOCLAW_RX_PIN, SERIAL_ROBOCLAW_TX_PIN);
+*/
+
+/*
+	This is going to have to be a software serial port because the
+		Teensy 3.1 only has three hardware serial ports.
+
+//	Hardware Serial3
+BMSerial xbee(SERIAL_XBEE_RX_PIN, SERIAL_XBEE_TX_PIN);
+*/
 
 //	We only have one RoboClaw 2x5 right now
 uint8_t roboClawControllers = ROBOCLAW_CONTROLLERS - 1;
@@ -399,8 +413,7 @@ long microsecondsToInches (long microseconds) {
 			73.746 microseconds per inch (i.e. sound travels at 1130 feet per
 			second).  This gives the distance travelled by the ping, outbound
 			and return, so we divide by 2 to get the distance of the obstacle.
-
-			See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
+		See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
 	*/
 	
 	return microseconds / 74 / 2;
@@ -501,15 +514,13 @@ void initPanTilt (void) {
 	//  Put the front pan/tilt at home position
 	moveServoPw(&panServo, SERVO_CENTER_MS, 0, 0, false);
 	moveServoPw(&tiltServo, SERVO_CENTER_MS, 0, 0, true);
-//	moveServoDegrees(&ssc32, &panS, moveDegrees, moveSpeed, moveTime, false);
-//	moveServoDegrees(&ssc32, &tiltS, moveDegrees, moveSpeed, moveTime, true);
+//	moveServoDegrees(&panS, moveDegrees, moveSpeed, moveTime, false);
+//	moveServoDegrees(&tiltS, moveDegrees, moveSpeed, moveTime, true);
 }
 
 /*
 	Initialize the RoboClaw 2x5 motor controller
-*/
 
-/*
 void initRoboClaw (uint8_t address, uint16_t bps, Motor *leftMotorM1, Motor *rightMotorM2) {
 	console.println("Initializing the RoboClaw 2x5 Motor Controller..");
 
@@ -575,6 +586,18 @@ void initSensors (void) {
 		console.println("Ooops, no LSM303 detected ... Check your wiring!");
 		while(1);
 	}
+
+	console.println("     L3GD20 Gyroscope..");
+
+	//	Initialize and warn if we couldn't detect the gyroscope chip
+	if (! gyroscope.begin(gyroscope.L3DS20_RANGE_250DPS)) {
+		console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
+		while (1);
+	}
+
+	console.println("     10 DOF Inertial Measurement Unit..");
+
+	imu.begin();
 
 	console.println("     BMP180 Temperature/Pressure..");
 
@@ -771,9 +794,10 @@ void displayPING (void) {
 }
 
 /*
-	Display the readings from the IMU (Accelerometer, Magnetometer [Compass], and Gyro
+	Display the readings from the IMU (Accelerometer, Magnetometer [Compass], Gyro,
+		and Orientation (if valid)
 */
-void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEvent, float celsius, float fahrenheit, int gyroX, int gyroY, int gyroZ) {
+void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEvent, sensors_vec_t *orientation, boolean pitchRollValid, boolean headingValid, boolean temperatureValid, float celsius, float fahrenheit, int gyroX, int gyroY, int gyroZ) {
 	//	Accelerometer readings
 	console.println("Accelerometer Readings:");
 	console.print("X = ");
@@ -791,32 +815,53 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.print(compassEvent->magnetic.y);
 	console.print(", Z = ");
 	console.println(compassEvent->magnetic.z);
-/*
+
 	//	Gyro readings
-	console.println("Gyro Readings:");
-	console.print("X = ");
+	console.println("Gyroscope Readings:");
+	console.print("Gyro: X = ");
 	console.print(gyroX);
 	console.print(", Y = ");
 	console.print(gyroY);
 	console.print(", Z = ");
 	console.println(gyroZ);
-*/
-	//	Temperature and Pressure readings
-	console.println("Temperature and Pressure Readings:");
-	console.print("Room Temperature = ");
-	console.print(fahrenheit);
-	console.print(" F, ");
-	console.print(celsius);
-	console.print(" C.");
+
+	//	Temperature readings
+	if (temperatureValid) {
+		console.print("Room Temperature = ");
+		console.print(fahrenheit);
+		console.print(" F, ");
+		console.print(celsius);
+		console.println(" C.");
+	}
+
+	if (pitchRollValid || headingValid) {
+		console.println("Orientation Readings:");
+	}
 	
+	//	Orientation readings - Pitch, Roll, and Heading
+	if (pitchRollValid) {
+		console.print(F("Roll: "));
+		console.print(orientation->roll);
+		console.print(F("; "));
+		console.print(F("Pitch: "));
+		console.print(orientation->pitch);
+	}
+
+	if (headingValid) {
+		if (pitchRollValid) {
+			console.print(", ");
+		}
+
+		console.print("Heading: ");
+		console.println(orientation->heading);
+	}
+
 	console.println();
 }
 
 /*
 	Display data from the RoboClaw 2x5 motor controller
-*/
 
-/*
 void displayRoboClawEncoderSpeed (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
 	char *version;
 
@@ -855,7 +900,7 @@ void displayRoboClawEncoderSpeed (uint8_t address, Motor *leftMotorM1, Motor *ri
 		console.println();
 	}
 	
-	console.println("");
+	console.println();
 }
 */
 
@@ -954,9 +999,7 @@ int readPING (byte sensorNr, boolean units=true) {
 
 /*
 	Read current data from the RoboClaw 2x5 Motor Controller
-*/
 
-/*
 uint16_t readRoboClaw (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
 	uint16_t error = 0;
 	bool valid;
@@ -993,10 +1036,10 @@ void moveServoPw (Servo *servo, int servoPosition, int moveSpeed, int moveTime, 
 	servo->error = 0;
   
 	if ((servoPosition >= servo->minPulse) && (servoPosition <= servo->maxPulse)) {
-		Serial2.print("#");
-		Serial2.print(servo->pin);
-		Serial2.print(" P");
-		Serial2.print(servoPosition + servo->offset);
+		ssc32.print("#");
+		ssc32.print(servo->pin);
+		ssc32.print(" P");
+		ssc32.print(servoPosition + servo->offset);
 
 		servo->msPulse = servoPosition;
 		servo->angle = ((servoPosition - SERVO_CENTER_MS) / 10);
@@ -1011,18 +1054,18 @@ void moveServoPw (Servo *servo, int servoPosition, int moveSpeed, int moveTime, 
 	if (servo->error == 0) {
 		//  Add servo move speed
 		if (moveSpeed != 0) {
-			Serial2.print(" S");
-			Serial2.print(moveSpeed);
+			ssc32.print(" S");
+			ssc32.print(moveSpeed);
 		}
     
 		//  Terminate the command
 		if (term) {
 			if (moveTime != 0) {
-				Serial2.print(" T");
-				Serial2.print(moveTime);
+				ssc32.print(" T");
+				ssc32.print(moveTime);
 			}
 
-			Serial2.println();
+			ssc32.println();
 		}
   	}
 }
@@ -1043,10 +1086,10 @@ void moveServoDegrees (Servo *servo, int servoDegrees, int moveSpeed, int moveTi
 	}
 
 	if ((servoPulse >= servo->minPulse) && (servoPulse <= servo->maxPulse)) {
-		Serial2.print("#");
-		Serial2.print(servo->pin);
-		Serial2.print(" P");
-		Serial2.print(servoPulse);
+		ssc32.print("#");
+		ssc32.print(servo->pin);
+		ssc32.print(" P");
+		ssc32.print(servoPulse);
 
 		servo->msPulse = (servoDegrees * 10) + SERVO_CENTER_MS;
 		servo->angle = servoDegrees;
@@ -1061,18 +1104,18 @@ void moveServoDegrees (Servo *servo, int servoDegrees, int moveSpeed, int moveTi
 	if (servo->error == 0) {
 		//  Add servo move speed
 		if (moveSpeed != 0) {
-			Serial2.print(" S");
-			Serial2.print(moveSpeed);
+			ssc32.print(" S");
+			ssc32.print(moveSpeed);
 		}
     
 		//  Terminate the command
 		if (term) {
 			if (moveTime != 0) {
-				Serial2.print(" T");
-				Serial2.print(moveTime);
+				ssc32.print(" T");
+				ssc32.print(moveTime);
 			}
       
-			Serial2.println();
+			ssc32.println();
 		}
 	}
 }
@@ -1121,18 +1164,19 @@ void setup (void) {
 	//  Start up the Wire library
 	Wire.begin();
 
-	//  Initialize the console port (BMSerial)
+	//  Initialize the console port
 	console.begin(115200);
 	console.println("W.A.L.T.E.R. 2.0 Navigation");
 
 	console.println("Initializing Serial Ports..");
 
-	//	Initialize the SSC-32 servo controller port (BMSerial)
+	//	Initialize the SSC-32 servo controller port
 	ssc32.begin(115200);
 
+/*
 	//	Initialize the XBee communication port (BMSerial)
-//	xbee.begin(115200);
-
+	xbee.begin(115200);
+*/
 	console.println("Initializing Digital Pins..");
 
 	//  Initialize the LED pin as an output.
@@ -1157,11 +1201,6 @@ void setup (void) {
 	initSensors();
 
 /*
-	Can not do anything with the RoboClaw 2x5 Motor Controller right now. That
-		library is going to have to be modified to use a hardware serial port
-		on the Teensy 3.1, which should not be too big of an issue.
-*/
-/*
 	//	Initialize the RoboClaw 2x5 motor controller port
 	initRoboClaw(roboClawAddress, 38400, &leftMotorM1, &rightMotorM2);
 */
@@ -1176,7 +1215,7 @@ void loop (void) {
 	DateTime now = clock.now();
 
 	//	Display related variables
-	boolean amTime;
+	boolean amTime, pitchRollValid = false, headingValid = false;
 	uint8_t displayNr = 0;
 	uint8_t currentHour = now.hour(), nrDisplays = 0;
 	uint16_t displayInt;
@@ -1300,21 +1339,18 @@ void loop (void) {
 	/*
 		Get gyro readings
 	*/
-
-/*
 	gyroscope.read();
 
 	gyroX = (int)gyroscope.data.x;
 	gyroY = (int)gyroscope.data.y;
 	gyroZ = (int)gyroscope.data.z;
-*/
+
 	/*
 		Get pitch, roll, and heading information
 	*/
 
-/*
 	//	Calculate pitch and roll from the raw accelerometer data
-	if (imu.accelGetOrientation(&accelEvent, &orientation)) {
+	if (pitchRollValid = imu.accelGetOrientation(&accelEvent, &orientation)) {
 		//	'orientation' should have valid .roll and .pitch fields
 		console.print(F("Roll: "));
 		console.print(orientation.roll);
@@ -1325,13 +1361,13 @@ void loop (void) {
 	}
 
 	//	Calculate the heading using the magnetometer (compass)
-	if (imu.magGetOrientation(SENSOR_AXIS_Z, &compassEvent, &orientation)) {
+	if (headingValid = imu.magGetOrientation(SENSOR_AXIS_Z, &compassEvent, &orientation)) {
 		//	'orientation' should have valid .heading data now
 		console.print(F("Heading: "));
 		console.print(orientation.heading);
 		console.println(F("; "));
 	}
-*/
+
 	/*
 		Put accelerometer and Gyro reactive behaviors HERE
 	*/
@@ -1413,7 +1449,7 @@ void loop (void) {
 		}
 	}
 
-	displayIMUReadings(&accelEvent, &compassEvent, celsius, fahrenheit, gyroX, gyroY, gyroZ);
+	displayIMUReadings (&accelEvent, &compassEvent, &orientation, pitchRollValid, headingValid, tempEvent.pressure, celsius, fahrenheit, gyroX, gyroY, gyroZ);
 
 	/*
 		Read the TCS34725 RGB color sensor

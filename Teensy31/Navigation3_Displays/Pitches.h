@@ -1,3 +1,38 @@
+/*
+	Program:      	W.A.L.T.E.R. 2.0, Main navigation, and reactive behaviors, header file
+	Date:         	09-Feb-2014
+	Version:      	0.2.3 Teensy 3.1 ALPHA
+
+	Purpose:		Added definitions for SoftwareSerial ports for the SSC-32 and RoboClaw 2x5
+
+					Added constants for RoboClaw motor controllers
+
+					--------------------------------------------------------------------------
+					v0.1.9 ALPHA:
+					Starting migration from the Arduino (BotBoarduino) to the Arduino Mega ADK
+
+					--------------------------------------------------------------------------
+					v0.2.3 Teensy 3.1 ALPHA 09-Feb-2014:
+					Beginning converstion to run on the Teensy 3.1 board
+
+					Set header definitions for the Teensy 3.1 hardware serial ports
+
+					---------------------------------------------------------------------------
+
+	Dependencies:	Adafruit libraries:
+                  		LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
+
+					Hybotics libraries:
+						BMP180 (modified from Adafruit's BMP085 library)
+
+	Comments:		Credit is given, where applicable, for code I did not originate.
+						This sketch started out as an Adafruit tutorial for the electret
+						microphones being used for sound detection. I've also pulled
+						code for the GP2D12 IR and PING sensors from the Arduino
+						Playground, which I have modified to suit my needs.
+
+					Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
+*/
 #ifndef _PITCHES_H_
 #define _PITCHES_H_
 

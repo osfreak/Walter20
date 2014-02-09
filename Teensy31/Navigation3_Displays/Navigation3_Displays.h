@@ -1,32 +1,37 @@
 /*
 	Program:      	W.A.L.T.E.R. 2.0, Main navigation, and reactive behaviors, header file
-	Date:         	08-Feb-2014
-	Version:      	0.2.3 ALPHA
+	Date:         	09-Feb-2014
+	Version:      	0.2.3 Teensy 3.1 ALPHA
 
-	Purpose:	Added definitions for SoftwareSerial ports for the SSC-32 and RoboClaw 2x5
+	Purpose:		Added definitions for SoftwareSerial ports for the SSC-32 and RoboClaw 2x5
 
-			Added constants for RoboClaw motor controllers
+					Added constants for RoboClaw motor controllers
 
-			--------------------------------------------------------------------------
-			v0.1.9 ALPHA:
-			Starting migration from the Arduino (BotBoarduino) to the Arduino Mega ADK
+					--------------------------------------------------------------------------
+					v0.1.9 ALPHA:
+					Starting migration from the Arduino (BotBoarduino) to the Arduino Mega ADK
 
-			--------------------------------------------------------------------------
+					--------------------------------------------------------------------------
+					v0.2.3 Teensy 3.1 ALPHA 09-Feb-2014:
+					Beginning converstion to run on the Teensy 3.1 board
+
+					Set header definitions for the Teensy 3.1 hardware serial ports
+
+					---------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
-                  			LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
+                  		LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
 
-			Hybotics libraries:
-				BMP180 (modified from Adafruit's BMP085 library)
+					Hybotics libraries:
+						BMP180 (modified from Adafruit's BMP085 library)
 
-	Comments:	Credit is given, where applicable, for code I did not originate.
-				This sketch started out as an Adafruit tutorial for the electret
-				microphones being used for sound detection. I've also pulled
-				code for the GP2D12 IR and PING sensors from the Arduino
-				Playground, which I have modified to suit my needs.
+	Comments:		Credit is given, where applicable, for code I did not originate.
+						This sketch started out as an Adafruit tutorial for the electret
+						microphones being used for sound detection. I've also pulled
+						code for the GP2D12 IR and PING sensors from the Arduino
+						Playground, which I have modified to suit my needs.
 
-			Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
-
+					Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
 #ifndef	__NAVIGATION3_H__
 #define	__NAVIGATION3_H__
@@ -93,17 +98,21 @@
 /*
 	Hardware Serial ports
 */
-//	Serial1: SSC-32 Servo Controller
-#define	SERIAL_SSC32_RX_PIN				19
-#define	SERIAL_SSC32_TX_PIN				18
+//	Serial2: SSC-32 Servo Controller
+#define	SERIAL_SSC32_RX_PIN				9
+#define	SERIAL_SSC32_TX_PIN				10
 
-//	Serial2: RoboClaw 2x5 Motor Controller
-#define	SERIAL_ROBOCLAW_RX_PIN			17
-#define	SERIAL_ROBOCLAW_TX_PIN			16
+//	Serial3: RoboClaw 2x5 Motor Controller
+#define	SERIAL_ROBOCLAW_RX_PIN			7
+#define	SERIAL_ROBOCLAW_TX_PIN			8
 
-//	Serial3: XBee
-#define	SERIAL_XBEE_RX_PIN				15
-#define	SERIAL_XBEE_TX_PIN				14
+/*
+	This is going to have to be a SoftwareSerial port, because the
+		Teensy 3.1 only has 3 hardware serial ports.
+*/
+//	XBee - SoftwareSerial
+#define	SERIAL_XBEE_RX_PIN				11
+#define	SERIAL_XBEE_TX_PIN				12
 
 /*
 	The following settings apply to the SSC-32 servo controller
