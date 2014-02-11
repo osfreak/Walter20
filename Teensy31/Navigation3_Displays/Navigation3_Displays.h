@@ -13,9 +13,24 @@
 
 					--------------------------------------------------------------------------
 					v0.2.3 Teensy 3.1 ALPHA 09-Feb-2014:
-					Beginning converstion to run on the Teensy 3.1 board
+					Beginning converstion to run on the Teensy 3.1 board:
 
 					Set header definitions for the Teensy 3.1 hardware serial ports
+
+					Removed all references to the BMSerial and RoboClaw libraries, because they just aren't
+						compatible with the Teensy 3.1 right now. I am not sure how I want to or should proceed
+						with this right now.
+
+					Fixed a problem with the Adafruit_10DOF_Unified library where it was not able to find the
+						Adafruit_BMP085_Unified.h file. I switched to using my version of this library
+						(Adafruit_BMP180_Unified), and everything seems OK - more testing is needed. I should
+						probably rename this library to Hybotics_BMP180_Unified to show there are differences
+						from the Adafruit version.
+
+					Added the LOOP_DELAY_SECONDS define for the time to delay at the end of the
+						mail loop().
+
+					This version builds cleanly for the Teensy 3.1 - testing begins.
 
 					---------------------------------------------------------------------------
 
@@ -62,6 +77,8 @@
 #define	DISPLAY_DATE_FREQ_MIN			15
 #define	DISPLAY_TIME_FREQ_MIN			15
 #define	DISPLAY_TEMPERATURE_FREQ_MIN	15
+
+#define LOOP_DELAY_SECONDS                      10
 
 /*
 	Sensor settings

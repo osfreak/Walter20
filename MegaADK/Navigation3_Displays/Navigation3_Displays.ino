@@ -1,7 +1,7 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			26-Jan-2014
-	Version:		0.2.2 ALPHA
+	Date:			09-Feb-2014
+	Version:		0.2.3 Arduino Mega ADK ALPHA
 
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
@@ -19,14 +19,14 @@
 					Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
 
 					-------------------------------------------------------------------------------------
-					v0.1.7 ALPHA 13-Jan-2014
+					v0.1.7 ALPHA 13-Jan-2014:
 					Added ColorSensor struct for RGB color sensor data; added code to read the TCS34725
 						RGB color and TMP006 heat sensors.
 
 					Added a control pin (COLOR_SENSOR_LED, pin 4) so the LED can be turned on and off.
 
 					-------------------------------------------------------------------------------------
-					v0.1.8 ALPHA 15-Jan 2014
+					v0.1.8 ALPHA 15-Jan 2014:
 					Fixed a bug in readPING() - was not getting the duration, because code was in a comment.
 
 					Now displaying readings from all sensors in the main loop. RGB color and Heat sensors are
@@ -38,18 +38,18 @@
 						5Kb of program memory left, RAM is low, etc. I don't think I have a choice here.
 
 					-------------------------------------------------------------------------------------
-					v0.1.9 ALPHA 18-Jan-2014
+					v0.1.9 ALPHA 18-Jan-2014:
 					Starting migration from the Arduino (BotBoarduino) to the Arduino Mega ADK board
 
 					-------------------------------------------------------------------------------------
-					v0.2.0 ALPHA 22-Jan-2014
+					v0.2.0 ALPHA 22-Jan-2014:
 					Adding display driver code from IMU_Multi_Display_Test.ino
 
 					I decided to keep the displays, because they can be useful for displaying status and
 						error information from the robot.
 
 					-------------------------------------------------------------------------------------
-					v0.2.1 ALPHA 24-Jan-2014
+					v0.2.1 ALPHA 24-Jan-2014:
 					Reorganized code, grouped similar kinds of routines together.
 
 					I discovered the problem with the I2C is with the DFRobots Sensor Shield I have for the
@@ -58,9 +58,23 @@
 						get more solder.
 
 					-------------------------------------------------------------------------------------
-					v0.2.2 ALPHA 26-Jan-2014
+					v0.2.2 ALPHA 26-Jan-2014:
 					Added the Adafruit_10DOF_Unified library to get orientation information - pitch, roll,
 						and heading from the raw accelerometer and magnetometer (compass) data
+
+					-------------------------------------------------------------------------------------
+					v0.2.3 09-Feb-2014:
+					Added conditional display of temperature and orientation readings to displayIMUReadings().
+
+					Added new validity parameters to the parameter list for displayIMUReadings().
+
+					Added delay at the end of the main loop() to allow time to read the Serial Monitor log.
+
+					Commented out the code that checks to see if the DS1307 RTC is running, because there is some
+						kind of bug in the isrunning() routine that causes it to return a failed check when the rtc
+						is running.
+
+					-------------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
 						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
@@ -543,6 +557,8 @@ void initRoboClaw (uint8_t address, uint16_t bps, Motor *leftMotorM1, Motor *rig
 }
 
 void initSensors (void) {
+	uint16_t rgbColorInit;
+
 	console.println("Initializing Sensors..");
 
 	//	Initialize the accelerometer
@@ -554,59 +570,59 @@ void initSensors (void) {
 		while(1);
 	}
 
+	//	Initialize the Magnetometer (Compass) sensor
 	console.println("     LSM303 Magnetometer (Compass)..");
 
-	//	Initialize the magnetometer (compass) sensor
 	if (! compass.begin()) {
 		/*	There was a problem detecting the LSM303 ... check your connections */
 		console.println("Ooops, no LSM303 detected ... Check your wiring!");
 		while(1);
 	}
 
+	//	Initialize and warn if we couldn't detect the gyroscope chip
 	console.println("     L3GD20 Gyroscope..");
 
-	//	Initialize and warn if we couldn't detect the gyroscope chip
 	if (! gyroscope.begin(gyroscope.L3DS20_RANGE_250DPS)) {
 		console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
 		while (1);
 	}
 
 	console.println("     10 DOF Inertial Measurement Unit..");
-
 	imu.begin();
 
+	//	Initialize the BMP180 temperature sensor
 	console.println("     BMP180 Temperature/Pressure..");
 
-	//	Initialize the BMP180 temperature sensor
 	if (! temperature.begin()) {
 		//  There was a problem detecting the BMP180 ... check your connections
 		console.println("Ooops, no BMP180 detected ... Check your wiring or I2C ADDR!");
 		while(1);
 	}
 	
+	//	Initialize the TMP006 heat sensor
 	console.println("     TMP006 Heat..");
 
-	//	Initialize the TMP006 heat sensor
 	if (! heat.begin()) {
 		console.println("There was a problem initializing the TMP006 heat sensor .. check your wiring or I2C ADDR!");
 		while(1);
 	}
-	
-	console.println("     TCS34725 RGB Color..");
 
 	//	Initialize the TCS34725 color sensor
-	if (! rgbColor.begin()) {
+	console.println("     TCS34725 RGB Color..");
+	rgbColorInit = rgbColor.begin();
+
+	if (! rgbColorInit) {
 		console.println("There was a problem initializing the TCS34725 RGB color sensor .. check your wiring or I2C ADDR!");
 		while(1);
 	}
 
+	//	Check to be sure the RTC is running
 	console.println("     DS1307 Real Time Clock..");
 
-	//	Check to be sure the RTC is running
-	if (! clock.isrunning()) {
-		console.println("The Real Time Clock is NOT running!");
-		while(1);
-	}
+//	if (! clock.isrunning()) {
+//		console.println("The Real Time Clock is NOT running!");
+//		while(1);
+//	}
 }
   
 /*
@@ -770,11 +786,13 @@ void displayPING (void) {
 }
 
 /*
-	Display the readings from the IMU (Accelerometer, Magnetometer [Compass], and Gyro
+	Display the readings from the IMU (Accelerometer, Magnetometer [Compass], Gyro,
+		and Orientation (if valid)
 */
-void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEvent, float celsius, float fahrenheit, int gyroX, int gyroY, int gyroZ) {
+void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEvent, sensors_vec_t *orientation, boolean pitchRollValid, boolean headingValid, boolean temperatureValid, float celsius, float fahrenheit, int gyroX, int gyroY, int gyroZ) {
 	//	Accelerometer readings
-	console.print("Accelerometer: X = ");
+	console.println("Accelerometer Readings:");
+	console.print("X = ");
 	console.print(accelEvent->acceleration.x);
 	console.print(", Y = ");
 	console.print(accelEvent->acceleration.y);
@@ -782,7 +800,8 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.println(accelEvent->acceleration.z);
 
 	//	Magnetometer (Compass) readings
-	console.print("Magnetometer (Compass): X = ");
+	console.println("Magnetometer (Compass) Readings:");
+	console.print("X = ");
 	console.print(compassEvent->magnetic.x);
 	console.print(", Y = ");
 	console.print(compassEvent->magnetic.y);
@@ -790,6 +809,7 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.println(compassEvent->magnetic.z);
 
 	//	Gyro readings
+	console.println("Gyroscope Readings:");
 	console.print("Gyro: X = ");
 	console.print(gyroX);
 	console.print(", Y = ");
@@ -798,12 +818,36 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.println(gyroZ);
 
 	//	Temperature readings
-	console.print("Room Temperature = ");
-	console.print(fahrenheit);
-	console.print(" F, ");
-	console.print(celsius);
-	console.print(" C.");
+	if (temperatureValid) {
+		console.print("Room Temperature = ");
+		console.print(fahrenheit);
+		console.print(" F, ");
+		console.print(celsius);
+		console.println(" C.");
+	}
+
+	if (pitchRollValid || headingValid) {
+		console.println("Orientation Readings:");
+	}
 	
+	//	Orientation readings - Pitch, Roll, and Heading
+	if (pitchRollValid) {
+		console.print(F("Roll: "));
+		console.print(orientation->roll);
+		console.print(F("; "));
+		console.print(F("Pitch: "));
+		console.print(orientation->pitch);
+	}
+
+	if (headingValid) {
+		if (pitchRollValid) {
+			console.print(", ");
+		}
+
+		console.print("Heading: ");
+		console.println(orientation->heading);
+	}
+
 	console.println();
 }
 
@@ -848,7 +892,7 @@ void displayRoboClawEncoderSpeed (uint8_t address, Motor *leftMotorM1, Motor *ri
 		console.println();
 	}
 	
-	console.println("");
+	console.println();
 }
 
 /* 
@@ -1159,8 +1203,8 @@ void loop (void) {
 	DateTime now = clock.now();
 
 	//	Display related variables
-	boolean amTime;
-	uint8_t displayNr = 0;
+	boolean amTime, pitchRollValid = false, headingValid = false;
+	uint8_t displayNr = 0, count = 0;
 	uint8_t currentHour = now.hour(), nrDisplays = 0;
 	uint16_t displayInt;
 
@@ -1294,7 +1338,7 @@ void loop (void) {
 	*/
 
 	//	Calculate pitch and roll from the raw accelerometer data
-	if (imu.accelGetOrientation(&accelEvent, &orientation)) {
+	if (pitchRollValid = imu.accelGetOrientation(&accelEvent, &orientation)) {
 		//	'orientation' should have valid .roll and .pitch fields
 		console.print(F("Roll: "));
 		console.print(orientation.roll);
@@ -1305,7 +1349,7 @@ void loop (void) {
 	}
 
 	//	Calculate the heading using the magnetometer (compass)
-	if (imu.magGetOrientation(SENSOR_AXIS_Z, &compassEvent, &orientation)) {
+	if (headingValid = imu.magGetOrientation(SENSOR_AXIS_Z, &compassEvent, &orientation)) {
 		//	'orientation' should have valid .heading data now
 		console.print(F("Heading: "));
 		console.print(orientation.heading);
@@ -1368,8 +1412,6 @@ void loop (void) {
 		//	Convert the atmospheric pressure, SLP and temp to altitude in meters
 		altitude = temperature.pressureToAltitude(seaLevelPressure, tempEvent.pressure, celsius); 
 
-		displayIMUReadings(&accelEvent, &compassEvent, celsius, fahrenheit, gyroX, gyroY, gyroZ);
-
 		if (displayTemperature && DISPLAY_INFORMATION) {
 			//  Display the temperature in Fahrenheit
 			writeNumber(0, int(fahrenheit * 100), 2, false);
@@ -1394,6 +1436,8 @@ void loop (void) {
 			clearDisplays();
 		}
 	}
+
+	displayIMUReadings (&accelEvent, &compassEvent, &orientation, pitchRollValid, headingValid, tempEvent.pressure, celsius, fahrenheit, gyroX, gyroY, gyroZ);
 
 	/*
 		Read the TCS34725 RGB color sensor
@@ -1438,4 +1482,16 @@ void loop (void) {
 		displayTemperature = (temperatureMinuteCount == DISPLAY_TEMPERATURE_FREQ_MIN);
 		displayTime = (timeMinuteCount == DISPLAY_TIME_FREQ_MIN);
 	}
+
+	/*
+		Delay to allow time to read the Serial Monitor information log
+	*/
+	console.print("Waiting");
+
+	for (count = 0; count < LOOP_DELAY_SECONDS; count++) {
+		console.print(".");
+		delay(1000);
+	}
+
+	console.println();
 }

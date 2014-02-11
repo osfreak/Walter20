@@ -150,7 +150,7 @@ uint8_t RTC_DS1307::isrunning(void) {
 
   WIRE.requestFrom(DS1307_ADDRESS, 1);
   uint8_t ss = WIRE.read();
-  return !(ss>>7);
+  return (!(ss>>7));
 }
 
 void RTC_DS1307::adjust(const DateTime& dt) {

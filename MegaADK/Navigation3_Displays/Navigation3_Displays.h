@@ -1,7 +1,7 @@
 /*
 	Program:      	W.A.L.T.E.R. 2.0, Main navigation, and reactive behaviors, header file
-	Date:         	24-Jan-2014
-	Version:      	0.2.1 ALPHA
+	Date:         	09-Feb-2014
+	Version:      	0.2.3 Arduino Mega ADK ALPHA
 
 	Purpose:		Added definitions for SoftwareSerial ports for the SSC-32 and RoboClaw 2x5
 
@@ -12,6 +12,12 @@
 					Starting migration from the Arduino (BotBoarduino) to the Arduino Mega ADK
 
 					--------------------------------------------------------------------------
+					v0.2.3 09-Feb-2014:
+
+					Added the LOOP_DELAY_SECONDS define for the time to delay at the end of the
+						mail loop().
+
+					---------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
                   		LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
@@ -46,6 +52,8 @@
 
 #define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + MAX_NUMBER_7SEG_DISPLAYS
 
+#define	LOOP_DELAY_SECONDS				10
+
 /*
 	These settings control whether standard information is displayed
 		on the seven segment and matrix displays or not, and how
@@ -61,7 +69,7 @@
 	Sensor settings
 */
 #define	IR_PIN_BASE						6			//	Analog 6
-#define	PING_PIN_BASE					24
+#define	PING_PIN_BASE					24			//	Digital 24
 
 #define	MAX_NUMBER_PING					1
 
@@ -154,12 +162,18 @@ struct HeatSensor {
 };
 
 struct Motor {
+	/*
+		R/C PWM control mode parameters
+	*/
 	uint8_t pin;
 
 	uint16_t pulseWidthMin;
 	uint16_t pulseWidthMax;
 	uint16_t pulseWidthAdjust;
 
+	/*
+		Packet Serial control mode parameters
+	*/
 	uint32_t encoder;
 	uint8_t encoderStatus;
 	bool encoderValid;

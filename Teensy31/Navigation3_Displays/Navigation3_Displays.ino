@@ -19,14 +19,14 @@
 					Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
 
 					-------------------------------------------------------------------------------------
-					v0.1.7 ALPHA 13-Jan-2014
+					v0.1.7 ALPHA 13-Jan-2014:
 					Added ColorSensor struct for RGB color sensor data; added code to read the TCS34725
 						RGB color and TMP006 heat sensors.
 
 					Added a control pin (COLOR_SENSOR_LED, pin 4) so the LED can be turned on and off.
 
 					-------------------------------------------------------------------------------------
-					v0.1.8 ALPHA 15-Jan 2014
+					v0.1.8 ALPHA 15-Jan 2014:
 					Fixed a bug in readPING() - was not getting the duration, because code was in a comment.
 
 					Now displaying readings from all sensors in the main loop. RGB color and Heat sensors are
@@ -38,18 +38,18 @@
 						5Kb of program memory left, RAM is low, etc. I don't think I have a choice here.
 
 					-------------------------------------------------------------------------------------
-					v0.1.9 ALPHA 18-Jan-2014
+					v0.1.9 ALPHA 18-Jan-2014:
 					Starting migration from the Arduino (BotBoarduino) to the Arduino Mega ADK board
 
 					-------------------------------------------------------------------------------------
-					v0.2.0 ALPHA 22-Jan-2014
+					v0.2.0 ALPHA 22-Jan-2014:
 					Adding display driver code from IMU_Multi_Display_Test.ino
 
 					I decided to keep the displays, because they can be useful for displaying status and
 						error information from the robot.
 
 					-------------------------------------------------------------------------------------
-					v0.2.1 ALPHA 24-Jan-2014
+					v0.2.1 ALPHA 24-Jan-2014:
 					Reorganized code, grouped similar kinds of routines together.
 
 					I discovered the problem with the I2C is with the DFRobots Sensor Shield I have for the
@@ -58,7 +58,7 @@
 						get more solder.
 
 					-------------------------------------------------------------------------------------
-					v0.2.2 ALPHA 26-Jan-2014
+					v0.2.2 ALPHA 26-Jan-2014:
 					Added the Adafruit_10DOF_Unified library to get orientation information - pitch, roll,
 						and heading from the raw accelerometer and magnetometer (compass) data
 
@@ -68,6 +68,23 @@
 
 					Set header definitions for the Teensy 3.1 hardware serial ports
 
+					Removed all references to the BMSerial and RoboClaw libraries, because they just aren't
+						compatible with the Teensy 3.1 right now. I am not sure how I want to or should proceed
+						with this right now.
+
+					Fixed a problem with the Adafruit_10DOF_Unified library where it was not able to find the
+						Adafruit_BMP085_Unified.h file. I switched to using my version of this library
+						(Adafruit_BMP180_Unified), and everything seems OK - more testing is needed. I should
+						probably rename this library to Hybotics_BMP180_Unified to show there are differences
+						from the Adafruit version.
+
+					Commented out the code that checks to see if the DS1307 RTC is running, because there is some
+						kind of bug in the isrunning() routine that causes it to return a failed check when the rtc
+						is running.
+
+					Added delay at the end of the main loop() to allow time to read the Serial Monitor log.
+
+					This version builds cleanly for the Teensy 3.1. Testing begins!
 					-------------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
@@ -627,10 +644,10 @@ void initSensors (void) {
 	console.println("     DS1307 Real Time Clock..");
 
 	//	Check to be sure the RTC is running
-	if (! clock.isrunning()) {
-		console.println("The Real Time Clock is NOT running!");
-		while(1);
-	}
+//	if (! clock.isrunning()) {
+//		console.println("The Real Time Clock is NOT running!");
+//		while(1);
+//	}
 }
   
 /*
@@ -1216,7 +1233,7 @@ void loop (void) {
 
 	//	Display related variables
 	boolean amTime, pitchRollValid = false, headingValid = false;
-	uint8_t displayNr = 0;
+	uint8_t displayNr = 0, count = 0;
 	uint8_t currentHour = now.hour(), nrDisplays = 0;
 	uint16_t displayInt;
 
@@ -1493,5 +1510,15 @@ void loop (void) {
 		displayDate = (dateMinuteCount == DISPLAY_DATE_FREQ_MIN);
 		displayTemperature = (temperatureMinuteCount == DISPLAY_TEMPERATURE_FREQ_MIN);
 		displayTime = (timeMinuteCount == DISPLAY_TIME_FREQ_MIN);
+	}
+
+	/*
+		Delay to allow time to read the Serial Monitor information log
+	*/
+	console.print("Waiting");
+
+	for (count = 0; count < LOOP_DELAY_SECONDS; count++) {
+		console.print(".");
+		delay(1000);
 	}
 }
