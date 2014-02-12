@@ -91,6 +91,9 @@
 
 					Minor changes required to bring code into sync with the Arduino Mega ADK code
 
+					I adjusted the display routines a bit to give the combined output a nicer and easier to
+						read look.
+
 					The BMP180 Temperature/Pressure sensor is working fine.
 
 					The TCS34725 RGB color and TMP006 heat sensors are working fine.
@@ -103,6 +106,7 @@
 						but am not sure they are correct. More testing and validation is needed.
 
 					This is the version running on my Teensy 3.1 now.
+
 					-------------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
@@ -780,18 +784,21 @@ void displayColorSensorReadings (ColorSensor *colorData) {
 	Display the TMP006 heat sensor readings
 */
 void displayHeatSensorReadings (HeatSensor *heatData) {
-	float celsius = heatData->objectTemp;
-	float fahrenheit = toFahrenheit(celsius);
+	float objCelsius = heatData->objectTemp;
+	float objFahrenheit = toFahrenheit(objCelsius);
+	float dieCelsius = heatData->dieTemp;
+	float dieFahrenheit = toFahrenheit(dieCelsius);
 
 	console.print("Object Temperature: ");
-	console.print(fahrenheit);
+	console.print(objFahrenheit);
 	console.print(" F, ");
-	console.print(celsius);
+	console.print(objCelsius);
 	console.println(" C");
 	console.print("Die Temperature: ");
-	console.print(heatData->dieTemp);
+	console.print(dieFahrenheit);
+	console.print(" F, ");
+	console.print(dieCelsius);
 	console.println(" C");
-	console.println();
 }
 
 /*
@@ -850,6 +857,7 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.print(accelEvent->acceleration.y);
 	console.print(", Z = ");
 	console.println(accelEvent->acceleration.z);
+	console.println();
 
 	//	LMS303DLHC Magnetometer (Compass) readings
 	console.println("Magnetometer (Compass) Readings:");
@@ -859,6 +867,7 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.print(compassEvent->magnetic.y);
 	console.print(", Z = ");
 	console.println(compassEvent->magnetic.z);
+	console.println();
 
 	//	BMP180 Temperature readings
 	if (temperatureValid) {
@@ -867,6 +876,7 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 		console.print(" F, ");
 		console.print(celsius);
 		console.println(" C.");
+		console.println();
 	}
 
 	if (pitchRollValid || headingValid) {
@@ -1215,6 +1225,7 @@ void setup (void) {
 	//  Initialize the console port
 	console.begin(115200);
 	console.println();
+	console.println();
 	console.println("W.A.L.T.E.R. 2.0 Navigation");
 
 	console.println("Initializing Serial Ports..");
@@ -1254,6 +1265,8 @@ void setup (void) {
 	initRoboClaw(roboClawAddress, 38400, &leftMotorM1, &rightMotorM2);
 */
 	initPanTilt();
+
+	console.println();
 }
 
 /*
@@ -1402,23 +1415,10 @@ void loop (void) {
 	*/
 
 	//	Calculate pitch and roll from the raw accelerometer data
-	if (pitchRollValid = imu.accelGetOrientation(&accelEvent, &orientation)) {
-		//	'orientation' should have valid .roll and .pitch fields
-		console.print(F("Roll: "));
-		console.print(orientation.roll);
-		console.print(F("; "));
-		console.print(F("Pitch: "));
-		console.print(orientation.pitch);
-		console.println(F("; "));
-	}
+	pitchRollValid = imu.accelGetOrientation(&accelEvent, &orientation);
 
 	//	Calculate the heading using the magnetometer (compass)
-	if (headingValid = imu.magGetOrientation(SENSOR_AXIS_Z, &compassEvent, &orientation)) {
-		//	'orientation' should have valid .heading data now
-		console.print(F("Heading: "));
-		console.print(orientation.heading);
-		console.println(F("; "));
-	}
+	headingValid = imu.magGetOrientation(SENSOR_AXIS_Z, &compassEvent, &orientation);
 
 	/*
 		Put accelerometer and Gyro reactive behaviors HERE
@@ -1557,5 +1557,6 @@ void loop (void) {
 		delay(1000);
 	}
 
+	console.println();
 	console.println();
 }
