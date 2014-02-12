@@ -1,7 +1,7 @@
 /*
 	Program:      	W.A.L.T.E.R. 2.0, Main navigation, and reactive behaviors, header file
-	Date:         	09-Feb-2014
-	Version:      	0.2.3 Teensy 3.1 ALPHA
+	Date:         	11-Feb-2014
+	Version:      	0.2.4 Teensy 3.1 ALPHA
 
 	Purpose:		Added definitions for SoftwareSerial ports for the SSC-32 and RoboClaw 2x5
 
@@ -30,6 +30,10 @@
 					Added the LOOP_DELAY_SECONDS define for the time to delay at the end of the
 						mail loop().
 
+					---------------------------------------------------------------------------
+					v0.2.4 ALPHA 11-Feb-2014:
+					Made changes to adjust header to the Teensy 3.1 hardware
+
 					This version builds cleanly for the Teensy 3.1 - testing begins.
 
 					---------------------------------------------------------------------------
@@ -53,9 +57,6 @@
 
 #define	NAV_I2C_ADDRESS					(0x50)
 
-#define	HARDWARE_SERIAL_RX_PIN			0
-#define	HARDWARE_SERIAL_TX_PIN			1
-
 #define	COLOR_SENSOR_LED				4
 
 #define	SPEAKER_OUT						5
@@ -78,13 +79,13 @@
 #define	DISPLAY_TIME_FREQ_MIN			15
 #define	DISPLAY_TEMPERATURE_FREQ_MIN	15
 
-#define LOOP_DELAY_SECONDS                      10
+#define LOOP_DELAY_SECONDS 				10
 
 /*
 	Sensor settings
 */
-#define	IR_PIN_BASE						6			//	Analog 6
-#define	PING_PIN_BASE					24
+#define	IR_PIN_BASE						0			//	Analog 6
+#define	PING_PIN_BASE					2
 
 #define	MAX_NUMBER_PING					1
 
@@ -115,6 +116,10 @@
 /*
 	Hardware Serial ports
 */
+//	Serial: Console and Debug port
+#define	CONSOLE_SERIAL_RX_PIN			0
+#define	CONSOLE_SERIAL_TX_PIN			1
+
 //	Serial2: SSC-32 Servo Controller
 #define	SERIAL_SSC32_RX_PIN				9
 #define	SERIAL_SSC32_TX_PIN				10

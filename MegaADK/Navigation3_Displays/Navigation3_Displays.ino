@@ -1,7 +1,7 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			09-Feb-2014
-	Version:		0.2.3 Arduino Mega ADK ALPHA
+	Date:			11-Feb-2014
+	Version:		0.2.4 Arduino Mega ADK ALPHA
 
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
@@ -73,6 +73,10 @@
 					Commented out the code that checks to see if the DS1307 RTC is running, because there is some
 						kind of bug in the isrunning() routine that causes it to return a failed check when the rtc
 						is running.
+
+					-------------------------------------------------------------------------------------
+					v0.2.4 ALPHA 11-Feb-2014
+					Version bump to coincide with the Teensy 3.1 version
 
 					-------------------------------------------------------------------------------------
 
@@ -195,9 +199,6 @@ boolean firstLoop = true;
 //	Error control
 byte error = 0;
 
-//	Hardware Serial console (replaces Serial.* routines)
-BMSerial console = BMSerial(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
-
 //  Support for multiple 7 segment displays
 Adafruit_7segment sevenSeg[MAX_NUMBER_7SEG_DISPLAYS];
 
@@ -206,6 +207,8 @@ Adafruit_8x8matrix matrix8x8 = Adafruit_8x8matrix();
 /*
 	BMSerial Ports - Hardware serial ports on the Arduino Mega ADK
 */
+//	Hardware Serial console (replaces Serial.* routines)
+BMSerial console(CONSOLE_SERIAL_RX_PIN, CONSOLE_SERIAL_TX_PIN);
 //	Hardware Serial1
 BMSerial ssc32(SERIAL_SSC32_RX_PIN, SERIAL_SSC32_TX_PIN);
 //	Hardware Serial2
@@ -1026,10 +1029,10 @@ void moveServoPw (BMSerial *port, Servo *servo, int servoPosition, int moveSpeed
 	servo->error = 0;
   
 	if ((servoPosition >= servo->minPulse) && (servoPosition <= servo->maxPulse)) {
-		port->print("#");
-		port->print(servo->pin);
-		port->print(" P");
-		port->print(servoPosition + servo->offset);
+		ssc32.print("#");
+		ssc32.print(servo->pin);
+		ssc32.print(" P");
+		ssc32.print(servoPosition + servo->offset);
 
 		servo->msPulse = servoPosition;
 		servo->angle = ((servoPosition - SERVO_CENTER_MS) / 10);
@@ -1044,18 +1047,18 @@ void moveServoPw (BMSerial *port, Servo *servo, int servoPosition, int moveSpeed
 	if (servo->error == 0) {
 		//  Add servo move speed
 		if (moveSpeed != 0) {
-			port->print(" S");
-			port->print(moveSpeed);
+			ssc32.print(" S");
+			ssc32.print(moveSpeed);
 		}
     
 		//  Terminate the command
 		if (term) {
 			if (moveTime != 0) {
-				port->print(" T");
-				port->print(moveTime);
+				ssc32.print(" T");
+				ssc32.print(moveTime);
 			}
 
-			port->println();
+			ssc32.println();
 		}
   	}
 }

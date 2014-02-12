@@ -1,7 +1,7 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			09-Feb-2014
-	Version:		0.2.3 Teensy 3.1 ALPHA
+	Date:			11-Feb-2014
+	Version:		0.2.4 Teensy 3.1 ALPHA
 
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
@@ -59,7 +59,7 @@
 
 					-------------------------------------------------------------------------------------
 					v0.2.2 ALPHA 26-Jan-2014:
-					Added the Adafruit_10DOF_Unified library to get orientation information - pitch, roll,
+					Added the Hybotics_10DOF_Unified library to get orientation information - pitch, roll,
 						and heading from the raw accelerometer and magnetometer (compass) data
 
 					-------------------------------------------------------------------------------------
@@ -72,9 +72,9 @@
 						compatible with the Teensy 3.1 right now. I am not sure how I want to or should proceed
 						with this right now.
 
-					Fixed a problem with the Adafruit_10DOF_Unified library where it was not able to find the
+					Fixed a problem with the Hybotics_10DOF_Unified library where it was not able to find the
 						Adafruit_BMP085_Unified.h file. I switched to using my version of this library
-						(Adafruit_BMP180_Unified), and everything seems OK - more testing is needed. I should
+						(Hybotics_BMP180_Unified), and everything seems OK - more testing is needed. I should
 						probably rename this library to Hybotics_BMP180_Unified to show there are differences
 						from the Adafruit version.
 
@@ -86,12 +86,37 @@
 
 					This version builds cleanly for the Teensy 3.1. Testing begins!
 					-------------------------------------------------------------------------------------
+					v0.2.4 ALPHA 11-Feb-2014:
+					Testing current code with Teensy 3.1 board.
+
+					Minor changes required to bring code into sync with the Arduino Mega ADK code
+
+					The BMP180 Temperature/Pressure sensor is working fine.
+
+					The TCS34725 RGB color and TMP006 heat sensors are working fine.
+
+					The L3GD20 Gyro does not seem to work, apparently it is not detected - commented all Gyro
+						related code out. I will look at the Adafruit_L3GD20 library and see if I can find any
+						issues.
+
+					I am getting readings from the LSM303DLHC Accelerometer and LSM303DLHC Magnetometer (Compass),
+						but am not sure they are correct. More testing and validation is needed.
+
+					This is the version running on my Teensy 3.1 now.
+					-------------------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
-						LSM303DLHC, L3GD20, TMP006, TCS34725, RTClib for the DS1307
+						Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries
+						Adafruit_LEDBackpack and Adafruit_GFX libraries (for the displays)
 
 					Hybotics libraries:
-						BMP180 (forked from Adafruit's BMP085 library)
+						Hybotics_BMP180_Unified (forked from the Adafruit_BMP085 library)
+						Hybotics_10DOF_Unified (forked from the Adafruit_10DOF library)
+						Hybotics_LSM303DLHC_Unified (forked from the Adafruit_LMS303 library)
+
+					Other libraries:
+						RTClib for the DS1307 (Adafruit version)
+						KalmanFilter
 
 	Comments:		Credit is given, where applicable, for code I did not originate.
 						This sketch started out as an Adafruit tutorial for the electret
@@ -107,10 +132,10 @@
 #include <Adafruit_GFX.h>
 
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BMP180_Unified.h>
-#include <Adafruit_LSM303DLHC_Unified.h>
 #include <Adafruit_L3GD20.h>
-#include <Adafruit_10DOF_Unified.h>
+#include <Hybotics_LSM303DLHC_Unified.h>
+#include <Hybotics_BMP180_Unified.h>
+#include <Hybotics_10DOF_Unified.h>
 #include <KalmanFilter.h>
 
 #include <RTClib.h>
@@ -168,11 +193,11 @@
 			PING Ultrasonic Ranging sensors (3)
 */
 
-Adafruit_BMP180_Unified temperature = Adafruit_BMP180_Unified(10001);
-Adafruit_LSM303_Accel_Unified accelerometer = Adafruit_LSM303_Accel_Unified(10002);
-Adafruit_LSM303_Mag_Unified compass = Adafruit_LSM303_Mag_Unified(10003);
+Hybotics_BMP180_Unified temperature = Hybotics_BMP180_Unified(10001);
+Hybotics_LSM303DLHC_Accel_Unified accelerometer = Hybotics_LSM303DLHC_Accel_Unified(10002);
+Hybotics_LSM303DLHC_Mag_Unified compass = Hybotics_LSM303DLHC_Mag_Unified(10003);
 Adafruit_L3GD20 gyroscope;
-Adafruit_10DOF_Unified imu = Adafruit_10DOF_Unified();
+Hybotics_10DOF_Unified imu = Hybotics_10DOF_Unified();
 
 Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 Adafruit_TMP006 heat = Adafruit_TMP006();
@@ -212,18 +237,16 @@ boolean firstLoop = true;
 //	Error control
 byte error = 0;
 
-//	Hardware Serial console (replaces Serial.* routines)
-HardwareSerial console = HardwareSerial();
-
 //  Support for multiple 7 segment displays
 Adafruit_7segment sevenSeg[MAX_NUMBER_7SEG_DISPLAYS];
 
 Adafruit_8x8matrix matrix8x8 = Adafruit_8x8matrix();
 
-/*
-	BMSerial Ports - Hardware serial ports on the Arduino Mega ADK
-*/
-//	Hardware Serial2
+
+//	Hardware Serial: Console and debug (replaces Serial.* routines)
+HardwareSerial console = HardwareSerial();
+
+//	Hardware Serial2: SSC-32 Servo Controller
 HardwareSerial2 ssc32 = HardwareSerial2();
 
 /*
@@ -587,23 +610,24 @@ void initSensors (void) {
 	console.println("Initializing Sensors..");
 
 	//	Initialize the accelerometer
-	console.println("     LSM303 Accelerometer..");
+	console.println("     LSM303DLHC Accelerometer..");
 
 	if (! accelerometer.begin()) {
-		/* There was a problem detecting the LSM303 ... check your connections */
-		console.println("Ooops, no LSM303 detected ... Check your wiring!");
+		/* There was a problem detecting the LSM303DLHC ... check your connections */
+		console.println("Ooops, no LSM303DLHC detected ... Check your wiring!");
 		while(1);
 	}
 
-	console.println("     LSM303 Magnetometer (Compass)..");
+	console.println("     LSM303DLHC Magnetometer (Compass)..");
 
 	//	Initialize the magnetometer (compass) sensor
 	if (! compass.begin()) {
-		/*	There was a problem detecting the LSM303 ... check your connections */
-		console.println("Ooops, no LSM303 detected ... Check your wiring!");
+		/*	There was a problem detecting the LSM303DLHC ... check your connections */
+		console.println("Ooops, no LSM303DLHC detected ... Check your wiring!");
 		while(1);
 	}
 
+/*
 	console.println("     L3GD20 Gyroscope..");
 
 	//	Initialize and warn if we couldn't detect the gyroscope chip
@@ -611,6 +635,7 @@ void initSensors (void) {
 		console.println("Oops ... unable to initialize the L3GD20. Check your wiring!");
 		while (1);
 	}
+*/
 
 	console.println("     10 DOF Inertial Measurement Unit..");
 
@@ -747,7 +772,7 @@ void displayColorSensorReadings (ColorSensor *colorData) {
 	console.print(colorData->blue, DEC);
 	console.print(" ");
 	console.print("C: ");
-	console.print(colorData->c, DEC);
+	console.println(colorData->c, DEC);
 	console.println();
 }
 
@@ -755,12 +780,18 @@ void displayColorSensorReadings (ColorSensor *colorData) {
 	Display the TMP006 heat sensor readings
 */
 void displayHeatSensorReadings (HeatSensor *heatData) {
+	float celsius = heatData->objectTemp;
+	float fahrenheit = toFahrenheit(celsius);
+
 	console.print("Object Temperature: ");
-	console.print(heatData->objectTemp);
+	console.print(fahrenheit);
+	console.print(" F, ");
+	console.print(celsius);
 	console.println(" C");
 	console.print("Die Temperature: ");
 	console.print(heatData->dieTemp);
 	console.println(" C");
+	console.println();
 }
 
 /*
@@ -769,9 +800,7 @@ void displayHeatSensorReadings (HeatSensor *heatData) {
 void displayIR (void) {
 	int sensorNr = 0;
   
-	console.println("------------------------------------");
-	console.println("IR Sensor readings");
-	console.println("------------------------------------");
+	console.println("IR Sensor readings:");
 
 	while (sensorNr < MAX_NUMBER_IR) {
 		console.print("IR #");
@@ -783,7 +812,7 @@ void displayIR (void) {
 		sensorNr += 1;
 	}
 
-	console.println();  
+	console.println();
 }
 
 /*
@@ -792,9 +821,7 @@ void displayIR (void) {
 void displayPING (void) {
 	int sensorNr = 0;
   
-	console.println("------------------------------------");
-	console.println("PING Ultrasonic Sensor readings");
-	console.println("------------------------------------");
+	console.println("PING Ultrasonic Sensor readings:");
   
 	//	Display PING sensor readings (cm)
 	while (sensorNr < MAX_NUMBER_PING) {
@@ -807,7 +834,7 @@ void displayPING (void) {
 		sensorNr += 1;
 	}
  
-	console.println("");
+	console.println();
 }
 
 /*
@@ -815,7 +842,7 @@ void displayPING (void) {
 		and Orientation (if valid)
 */
 void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEvent, sensors_vec_t *orientation, boolean pitchRollValid, boolean headingValid, boolean temperatureValid, float celsius, float fahrenheit, int gyroX, int gyroY, int gyroZ) {
-	//	Accelerometer readings
+	//	LMS303DLHC Accelerometer readings
 	console.println("Accelerometer Readings:");
 	console.print("X = ");
 	console.print(accelEvent->acceleration.x);
@@ -824,7 +851,7 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.print(", Z = ");
 	console.println(accelEvent->acceleration.z);
 
-	//	Magnetometer (Compass) readings
+	//	LMS303DLHC Magnetometer (Compass) readings
 	console.println("Magnetometer (Compass) Readings:");
 	console.print("X = ");
 	console.print(compassEvent->magnetic.x);
@@ -833,16 +860,7 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 	console.print(", Z = ");
 	console.println(compassEvent->magnetic.z);
 
-	//	Gyro readings
-	console.println("Gyroscope Readings:");
-	console.print("Gyro: X = ");
-	console.print(gyroX);
-	console.print(", Y = ");
-	console.print(gyroY);
-	console.print(", Z = ");
-	console.println(gyroZ);
-
-	//	Temperature readings
+	//	BMP180 Temperature readings
 	if (temperatureValid) {
 		console.print("Room Temperature = ");
 		console.print(fahrenheit);
@@ -872,6 +890,19 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 		console.print("Heading: ");
 		console.println(orientation->heading);
 	}
+
+/*
+	Does not seem to work with the Teensy 3.1
+
+	//	L3DG20 Gyroscope readings
+	console.println("Gyroscope Readings:");
+	console.print("Gyro: X = ");
+	console.print(gyroX);
+	console.print(", Y = ");
+	console.print(gyroY);
+	console.print(", Z = ");
+	console.println(gyroZ);
+*/
 
 	console.println();
 }
@@ -1047,7 +1078,7 @@ uint16_t readRoboClaw (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2)
 /********************************************************************/
 
 /*
-    Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use BMSerial
+    Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use HardwareSerial2()
 */
 void moveServoPw (Servo *servo, int servoPosition, int moveSpeed, int moveTime, boolean term) {
 	servo->error = 0;
@@ -1183,6 +1214,7 @@ void setup (void) {
 
 	//  Initialize the console port
 	console.begin(115200);
+	console.println();
 	console.println("W.A.L.T.E.R. 2.0 Navigation");
 
 	console.println("Initializing Serial Ports..");
@@ -1249,7 +1281,7 @@ void loop (void) {
 	float compassX, compassY, compassZ;
 	float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
 
-	int gyroX, gyroY, gyroZ;
+	int gyroX = 0, gyroY = 0, gyroZ = 0;
 
 	sensors_event_t accelEvent, compassEvent, tempEvent;
 	sensors_vec_t orientation;
@@ -1356,11 +1388,14 @@ void loop (void) {
 	/*
 		Get gyro readings
 	*/
+
+/*
 	gyroscope.read();
 
 	gyroX = (int)gyroscope.data.x;
 	gyroY = (int)gyroscope.data.y;
 	gyroZ = (int)gyroscope.data.z;
+*/
 
 	/*
 		Get pitch, roll, and heading information
@@ -1521,4 +1556,6 @@ void loop (void) {
 		console.print(".");
 		delay(1000);
 	}
+
+	console.println();
 }
