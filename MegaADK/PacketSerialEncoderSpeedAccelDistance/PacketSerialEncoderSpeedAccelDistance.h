@@ -27,13 +27,10 @@
 
 					Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
-#ifndef	__NAVIGATION3_H__
-#define	__NAVIGATION3_H__
+#ifndef	__PacketSerialEncoderSpeedAccelDistance_H__
+#define	__PacketSerialEncoderSpeedAccelDistance_H__
 
 #define	NAV_I2C_ADDRESS					0x50
-
-#define	HARDWARE_SERIAL_RX_PIN			0
-#define	HARDWARE_SERIAL_TX_PIN			1
 
 #define	COLOR_SENSOR_LED				4
 
@@ -75,13 +72,17 @@
 /*
 	Hardware Serial ports
 */
-//	Serial1: SSC-32 Servo Controller
-#define	SERIAL_SSC32_RX_PIN				19
-#define	SERIAL_SSC32_TX_PIN				18
+//      Serial: Console and Debug
+#define	SERIAL_CONSOLE_RX_PIN			0
+#define	SERIAL_CONSOLE_TX_PIN			1
 
-//	Serial2: RoboClaw 2x5 Motor Controller
-#define	SERIAL_ROBOCLAW_RX_PIN			17
-#define	SERIAL_ROBOCLAW_TX_PIN			16
+//	Serial1: RoboClaw 2x5 Motor Controller
+#define	SERIAL_ROBOCLAW_RX_PIN			19
+#define	SERIAL_ROBOCLAW_TX_PIN			18
+
+//	Serial2: SSC-32 Servo Controller
+#define	SERIAL_SSC32_RX_PIN				17
+#define	SERIAL_SSC32_TX_PIN				16
 
 //	Serial3: XBee
 #define	SERIAL_XBEE_RX_PIN				15

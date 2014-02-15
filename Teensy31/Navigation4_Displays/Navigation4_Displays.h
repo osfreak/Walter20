@@ -65,6 +65,7 @@
 #define	__NAVIGATION4_DISPLAYS_H__
 
 #define	NAV_I2C_ADDRESS					(0x50)
+
 #define	BUILD_VERSION					"0.2.5"
 #define BUILD_DATE 						"12-Feb-2014"
 #define BUILD_BOARD						"Teensy 3.1"

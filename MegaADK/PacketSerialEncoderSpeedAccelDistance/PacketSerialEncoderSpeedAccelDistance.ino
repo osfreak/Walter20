@@ -12,7 +12,7 @@
 
 #define  ONOFF_TIME_MS  750
 
-BMSerial terminal(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
+BMSerial console(SERIAL_CONSOLE_RX_PIN, SERIAL_CONSOLE_TX_PIN);
 
 //Arduino Mega and Leonardo chips only support some pins for receiving data back from the RoboClaw
 //This is because only some pins of these boards support PCINT interrupts or are UART receivers.
@@ -21,7 +21,7 @@ BMSerial terminal(HARDWARE_SERIAL_RX_PIN, HARDWARE_SERIAL_TX_PIN);
 
 //Arduino Due currently does not support SoftwareSerial. Only hardware uarts can be used, pins 0/1, 14/15, 16/17 or 18/19.
 
-RoboClaw roboclaw(SERIAL_ROBOCLAW_RX_PIN, SERIAL_ROBOCLAW_TX_PIN);
+RoboClaw roboClaw(SERIAL_ROBOCLAW_RX_PIN, SERIAL_ROBOCLAW_TX_PIN, 10000, false);
 
 /*
     Pulses a digital pin for a duration in ms
@@ -38,53 +38,53 @@ void displayspeed (void) {
   bool valid;
   uint32_t enc1, speed1, enc2, speed2;
   
-  enc1 = roboclaw.ReadEncM1(address, &rStatus, &valid);
+  enc1 = roboClaw.ReadEncM1(address, &rStatus, &valid);
 
   if (valid) {
-    terminal.print("Encoder1: ");
-    terminal.print(enc1, DEC);
-    terminal.print(", Status: ");
-    terminal.print(rStatus, HEX);
-    terminal.print(" ");
+    console.print("Encoder1: ");
+    console.print(enc1, DEC);
+    console.print(", Status: ");
+    console.print(rStatus, HEX);
+    console.print(" ");
   }
 
-  enc2 = roboclaw.ReadEncM2(address, &rStatus, &valid);
+  enc2 = roboClaw.ReadEncM2(address, &rStatus, &valid);
 
   if (valid) {
-    terminal.print("Encoder2: ");
-    terminal.print(enc2, DEC);
-    terminal.print(", Status: ");
-    terminal.print(rStatus, HEX);
-    terminal.print(" ");
+    console.print("Encoder2: ");
+    console.print(enc2, DEC);
+    console.print(", Status: ");
+    console.print(rStatus, HEX);
+    console.print(" ");
   }
 
-  speed1 = roboclaw.ReadSpeedM1(address, &rStatus, &valid);
+  speed1 = roboClaw.ReadSpeedM1(address, &rStatus, &valid);
 
   if (valid) {
-    terminal.print("Speed1: ");
-    terminal.print(speed1, DEC);
-    terminal.print(" ");
-  }
-  
-  speed2 = roboclaw.ReadSpeedM2(address, &rStatus, &valid);
-
-  if (valid) {
-    terminal.print("Speed2: ");
-    terminal.print(speed2, DEC);
-    terminal.print(" ");
+    console.print("Speed1: ");
+    console.print(speed1, DEC);
+    console.print(" ");
   }
   
-  terminal.println();
+  speed2 = roboClaw.ReadSpeedM2(address, &rStatus, &valid);
+
+  if (valid) {
+    console.print("Speed2: ");
+    console.print(speed2, DEC);
+    console.print(" ");
+  }
+  
+  console.println();
 }
 
 void setup() {
-  terminal.begin(115200);
-  roboclaw.begin(38400);
+  console.begin(115200);
+  roboClaw.begin(38400);
   
   pinMode(HEARTBEAT_LED, OUTPUT);
   
-  roboclaw.SetM1Constants(address, Kd, Kp, Ki, qpps);
-  roboclaw.SetM2Constants(address, Kd, Kp, Ki, qpps);  
+  roboClaw.SetM1VelocityPID(address, Kd, Kp, Ki, qpps);
+  roboClaw.SetM2VelocityPID(address, Kd, Kp, Ki, qpps);  
 }
 
 void loop() {
@@ -92,17 +92,17 @@ void loop() {
 
   pulseDigital(HEARTBEAT_LED, ONOFF_TIME_MS);
   
-  roboclaw.SpeedAccelDistanceM1(address, 12000, 12000, 48000);
+  roboClaw.SpeedAccelDistanceM1(address, 12000, 12000, 48000);
 
   do {
     displayspeed();
-    roboclaw.ReadBuffers(address ,depth1, depth2);
+    roboClaw.ReadBuffers(address ,depth1, depth2);
   } while (depth1);
 
-  roboclaw.SpeedAccelDistanceM1(address, 12000, -12000, 48000);
+  roboClaw.SpeedAccelDistanceM1(address, 12000, -12000, 48000);
 
   do {
     displayspeed();
-    roboclaw.ReadBuffers(address, depth1, depth2);
+    roboClaw.ReadBuffers(address, depth1, depth2);
   } while (depth1);
 }

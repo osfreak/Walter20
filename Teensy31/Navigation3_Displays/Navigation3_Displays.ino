@@ -1,7 +1,7 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			11-Feb-2014
-	Version:		0.2.4 Teensy 3.1 ALPHA
+	Date:			12-Feb-2014
+	Version:		0.2.5 Teensy 3.1 ALPHA
 
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
@@ -108,6 +108,11 @@
 					This is the version running on my Teensy 3.1 now.
 
 					-------------------------------------------------------------------------------------
+					v0.2.5 ALPHA 12-Feb-2014:
+					Changed the COLOR_SENSOR_LED from pin 4 to pin 11. Pin 4 conflicted with the
+						location of the PING sensors on pins 4 to 6.
+
+					---------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
 						Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries
@@ -1225,8 +1230,7 @@ void setup (void) {
 	//  Initialize the console port
 	console.begin(115200);
 	console.println();
-	console.println();
-	console.println("W.A.L.T.E.R. 2.0 Navigation");
+	console.println("W.A.L.T.E.R. 2.0 Navigation, Teensy 3.1 v0.2.5 ALPHA");
 
 	console.println("Initializing Serial Ports..");
 

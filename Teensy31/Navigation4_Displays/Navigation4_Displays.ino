@@ -1,7 +1,7 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			12-Feb-2014
-	Version:		0.2.5 Teensy 3.1 ALPHA
+	Date:			13-Feb-2014
+	Version:		0.2.6 Teensy 3.1 ALPHA
 
 	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
 						not sure the sensor locations are going to work out.
@@ -891,6 +891,15 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 		console.println();
 	}
 
+	//	L3DG20 Gyroscope readings
+	console.println("Gyroscope Readings:");
+	console.print("X = ");
+	console.print(gyroX);
+	console.print(", Y = ");
+	console.print(gyroY);
+	console.print(", Z = ");
+	console.println(gyroZ);
+
 	if (pitchRollValid || headingValid) {
 		console.println("Orientation Readings:");
 	}
@@ -912,15 +921,6 @@ void displayIMUReadings (sensors_event_t *accelEvent, sensors_event_t *compassEv
 		console.print("Heading: ");
 		console.println(orientation->heading);
 	}
-
-	//	L3DG20 Gyroscope readings
-	console.println("Gyroscope Readings:");
-	console.print("Gyro: X = ");
-	console.print(gyroX);
-	console.print(", Y = ");
-	console.print(gyroY);
-	console.print(", Z = ");
-	console.println(gyroZ);
 
 	console.println();
 }
@@ -1559,20 +1559,20 @@ void loop (void) {
 	}
   
 	if (tempEvent.pressure) {
-		/* Calculating altitude with reasonable accuracy requires pressure    *
-		 * sea level pressure for your position at the moment the data is     *
-		 * converted, as well as the ambient temperature in degress           *
-		 * celcius.  If you don't have these values, a 'generic' value of     *
-		 * 1013.25 hPa can be used (defined as SENSORS_PRESSURE_SEALEVELHPA   *
-		 * in sensors.h), but this isn't ideal and will give variable         *
-		 * results from one day to the next.                                  *
-		 *                                                                    *
-		 * You can usually find the current SLP value by looking at weather   *
-		 * websites or from environmental information centers near any major  *
-		 * airport.                                                           *
-		 *                                                                    *
-		 * For example, for Paris, France you can check the current mean      *
-		 * pressure and sea level at: http://bit.ly/16Au8ol                   */
+		// Calculating altitude with reasonable accuracy requires pressure
+		// sea level pressure for your position at the moment the data is
+		// converted, as well as the ambient temperature in degress
+		// celcius.  If you don't have these values, a 'generic' value of
+		// 1013.25 hPa can be used (defined as SENSORS_PRESSURE_SEALEVELHPA
+		// in sensors.h), but this isn't ideal and will give variable
+		// results from one day to the next.
+		//
+		// You can usually find the current SLP value by looking at weather
+		// websites or from environmental information centers near any major
+		// airport.
+		//
+		// For example, for Paris, France you can check the current mean
+		// pressure and sea level at: http://bit.ly/16Au8ol
 
 		//  First we get the current temperature from the BMP180 in celsius and fahrenheit
 		temperature.getTemperature(&celsius);

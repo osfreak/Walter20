@@ -1,7 +1,7 @@
 /*
 	Program:      	W.A.L.T.E.R. 2.0, Main navigation, and reactive behaviors, header file
-	Date:         	11-Feb-2014
-	Version:      	0.2.4 Teensy 3.1 ALPHA
+	Date:         	12-Feb-2014
+	Version:      	0.2.5 Teensy 3.1 ALPHA
 
 	Purpose:		Added definitions for SoftwareSerial ports for the SSC-32 and RoboClaw 2x5
 
@@ -37,6 +37,11 @@
 					This version builds cleanly for the Teensy 3.1 - testing begins.
 
 					---------------------------------------------------------------------------
+					v0.2.5 ALPHA 12-Feb-2014:
+					Changed the COLOR_SENSOR_LED from pin 4 to pin 11. Pin 4 conflicted with the
+						location of the PING sensors on pins 4 to 6.
+
+					---------------------------------------------------------------------------
 
 	Dependencies:	Adafruit libraries:
                   		LSM303DLHC, L3GD20, TMP006, TCS34727, RTClib for the DS1307
@@ -57,9 +62,9 @@
 
 #define	NAV_I2C_ADDRESS					(0x50)
 
-#define	COLOR_SENSOR_LED				4
+#define	COLOR_SENSOR_LED				11
 
-#define	SPEAKER_OUT						5
+#define	SPEAKER_OUT						12
 #define	HEARTBEAT_LED       	        13
 
 //	Display constants
