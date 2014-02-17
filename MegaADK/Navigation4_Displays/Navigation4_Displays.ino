@@ -992,7 +992,7 @@ void displayMotor (Motor *motor, String name, boolean serialPWM = true) {
 /*
 	Display data from the RoboClaw 2x5 motor controller
 */
-void displayRoboClawEncoderSpeed (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
+void displayRoboClawData (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
 	char version[32];
 
 	roboClaw.ReadVersion(address, version);
@@ -1046,6 +1046,9 @@ void displayRoboClawEncoderSpeed (uint8_t address, Motor *leftMotorM1, Motor *ri
 
 	TODO: Make several readings over a time period, and average them
 		for the final reading.
+
+	NOTE: This code is for the older Sharp GP2D12 IR sensor, and will no
+		doubt have to be adjusted to work correctly with the newer sensor.
 */
 float readIR (byte sensorNr) {
 	byte pin = sensorNr + IR_PIN_BASE;
@@ -1128,7 +1131,7 @@ int readPING (byte sensorNr, boolean units=true) {
 /*
 	Read current data from the RoboClaw 2x5 Motor Controller
 */
-uint16_t readRoboClaw (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
+uint16_t readRoboClawData (uint8_t address, Motor *leftMotorM1, Motor *rightMotorM2) {
 	uint16_t error = 0;
 	bool valid;
 	uint8_t status;
@@ -1540,12 +1543,12 @@ void loop (void) {
 	*/
 	console.println("Reading RoboClaw..");
 
-	error = readRoboClaw(roboClawAddress, &leftMotorM1, &rightMotorM2);
+	error = readRoboClawData(roboClawAddress, &leftMotorM1, &rightMotorM2);
 
 	if (error != 0) {
 		processError(error);
 	} else {
-		displayRoboClawEncoderSpeed(roboClawAddress, &leftMotorM1, &rightMotorM2);
+		displayRoboClawData(roboClawAddress, &leftMotorM1, &rightMotorM2);
 	}
 
 	console.println("Getting Temperature and Pressure readings..");
