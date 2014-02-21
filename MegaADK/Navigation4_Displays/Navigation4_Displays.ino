@@ -1,130 +1,11 @@
 /*
 	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			13-Feb-2014
-	Version:		0.2.5 Arduino Mega ADK - ALPHA
+	Date:			21-Feb-2014
+	Version:		0.2.6 Arduino Mega ADK - ALPHA
 
-	Purpose:		Added two enum definitions for SensorLocation and MotorLocation. I'm
-						not sure the sensor locations are going to work out.
-
-					Added BMSerial ports for the SSC-32 and RoboClaw 2x5 controllers;
-						defined a Motor struct to hold information about motors; added motor
-						definitions and initialization; modified moveServoPw() and moveServoDegrees()
-						to work with a BMSerial port.
-
-					Converted to using a BMSerial() port for the hardware serial console port
-
-					Converted to running the RoboClaw 2x5 motor controller in Packet Serial mode,
-						with all the goodies - encoders, speed, acceleration, and distance.
-
-					Modified moveServoPw() and moveServoDegrees() to use a pointer to the port
-
-					-------------------------------------------------------------------------------------
-					v0.1.7 ALPHA 13-Jan-2014:
-					Added ColorSensor struct for RGB color sensor data; added code to read the TCS34725
-						RGB color and TMP006 heat sensors.
-
-					Added a control pin (COLOR_SENSOR_LED, pin 4) so the LED can be turned on and off.
-
-					-------------------------------------------------------------------------------------
-					v0.1.8 ALPHA 15-Jan 2014:
-					Fixed a bug in readPING() - was not getting the duration, because code was in a comment.
-
-					Now displaying readings from all sensors in the main loop. RGB color and Heat sensors are
-						working. IMU seems to be working so far - still need to get useful information from it.
-
-					The SSC-32 doesn't seem to like SoftwareSerial ports.
-
-					I'm thinking more seriously about moving to the Arduino Mega ADK board. There is only about
-						5Kb of program memory left, RAM is low, etc. I don't think I have a choice here.
-
-					-------------------------------------------------------------------------------------
-					v0.1.9 ALPHA 18-Jan-2014:
-					Starting migration from the Arduino (BotBoarduino) to the Arduino Mega ADK board
-
-					-------------------------------------------------------------------------------------
-					v0.2.0 ALPHA 22-Jan-2014:
-					Adding display driver code from IMU_Multi_Display_Test.ino
-
-					I decided to keep the displays, because they can be useful for displaying status and
-						error information from the robot.
-
-					-------------------------------------------------------------------------------------
-					v0.2.1 ALPHA 24-Jan-2014:
-					Reorganized code, grouped similar kinds of routines together.
-
-					I discovered the problem with the I2C is with the DFRobots Sensor Shield I have for the
-						Arduino Mega ADK board. I removed the shield, rewired everything, and it's all
-						working except the DS1307 real time clock. I have another one I can build when I
-						get more solder.
-
-					-------------------------------------------------------------------------------------
-					v0.2.2 ALPHA 26-Jan-2014:
-					Added the Hybotics_10DOF_Unified library to get orientation information - pitch, roll,
-						and heading from the raw accelerometer and magnetometer (compass) data
-
-					-------------------------------------------------------------------------------------
-					v0.2.3 Teensy 3.1 ALPHA 09-Feb-2014:
-					Beginning converstion to run on the Teensy 3.1 board:
-
-					Set header definitions for the Teensy 3.1 hardware serial ports
-
-					Removed all references to the BMSerial and RoboClaw libraries, because they just aren't
-						compatible with the Teensy 3.1 right now. I am not sure how I want to or should proceed
-						with this right now.
-
-					Fixed a problem with the Hybotics_10DOF_Unified library where it was not able to find the
-						Adafruit_BMP085_Unified.h file. I switched to using my version of this library
-						(Hybotics_BMP180_Unified), and everything seems OK - more testing is needed. I should
-						probably rename this library to Hybotics_BMP180_Unified to show there are differences
-						from the Adafruit version.
-
-					Commented out the code that checks to see if the DS1307 RTC is running, because there is some
-						kind of bug in the isrunning() routine that causes it to return a failed check when the rtc
-						is running.
-
-					Added delay at the end of the main loop() to allow time to read the Serial Monitor log.
-
-					This version builds cleanly for the Teensy 3.1. Testing begins!
-					-------------------------------------------------------------------------------------
-					v0.2.4 ALPHA 11-Feb-2014:
-					Testing current code with Teensy 3.1 board.
-
-					Minor changes required to bring code into sync with the Arduino Mega ADK code
-
-					I adjusted the display routines a bit to give the combined output a nicer and easier to
-						read look.
-
-					The BMP180 Temperature/Pressure sensor is working fine.
-
-					The TCS34725 RGB color and TMP006 heat sensors are working fine.
-
-					The L3GD20 Gyro does not seem to work, apparently it is not detected - commented all Gyro
-						related code out. I will look at the Adafruit_L3GD20 library and see if I can find any
-						issues.
-
-					I am getting readings from the LSM303DLHC Accelerometer and LSM303DLHC Magnetometer (Compass),
-						but am not sure they are correct. More testing and validation is needed.
-
-					-------------------------------------------------------------------------------------
-					v0.2.5 ALPHA 12-Feb-2014:
-					Changed the COLOR_SENSOR_LED from pin 4 to pin 11. Pin 4 conflicted with the
-						location of the PING sensors on pins 4 to 6.
-
-					Added the build version, date, and board to the heading announcement.
-
-					I've activated all RoboClaw related code now, and everything builds and loads into the
-						Teensy 3.1 now.
-
-					Starting to test Paul's fixes to the BMSerial and RoboClaw libraries. I have communication
-						on Serial2 (pins 9, 10) and Serial3 (pins 7, 8) at 115200 with the SSC-32, but nothing
-						on Serial (pins 0, 1).
-
-					I've added many console.println() statements to trace how far the code is executing
-
-					This is the version running on my Teensy 3.1 now.
-
-					---------------------------------------------------------------------------------------
-
+	Purpose:		To handle the navigation and navigation related sensor subsystem for
+						W.A.L.T.E.R.
+						
 	Dependencies:	Adafruit libraries:
 						Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries.
 						Adafruit_LEDBackpack and Adafruit_GFX libraries (for the displays)
@@ -288,7 +169,7 @@ Motor rightMotorM2;
 /*
     Initialize servos
 */
-Servo panServo = {
+Servo pan = {
 	SERVO_PAN_PIN,
 	SERVO_PAN_ADJUST,
 	0,
@@ -299,7 +180,7 @@ Servo panServo = {
 	0
 };
 
-Servo tiltServo = {
+Servo tilt = {
 	SERVO_TILT_PIN,
 	SERVO_TILT_ADJUST,
 	0,
@@ -310,9 +191,14 @@ Servo tiltServo = {
 	0
 };
 
+//	Total number of area readings taken, or -1 if data is not valid
+int nrAreaReadings;
+
 //  These are where the range sensor readings are stored.
 int ping[MAX_NUMBER_PING];
 float ir[MAX_NUMBER_IR];
+
+AreaDistanceReading areaScan[MAX_NUMBER_AREA_READINGS];
 
 ColorSensor colorData = {
 	0,
@@ -564,8 +450,8 @@ void initPanTilt (void) {
 	console.println("Initializing Pan/Tilt");
   
 	//  Put the front pan/tilt at home position
-	moveServoPw(&panServo, SERVO_CENTER_MS, 0, 0, false);
-	moveServoPw(&tiltServo, SERVO_CENTER_MS, 0, 0, true);
+	moveServoPw(&pan, SERVO_CENTER_MS, 0, 0, false);
+	moveServoPw(&tilt, SERVO_CENTER_MS, 0, 0, true);
 //	moveServoDegrees(&panS, moveDegrees, moveSpeed, moveTime, false);
 //	moveServoDegrees(&tiltS, moveDegrees, moveSpeed, moveTime, true);
 }
@@ -1253,20 +1139,87 @@ void moveServoDegrees (Servo *servo, int servoDegrees, int moveSpeed, int moveTi
 		}
 	}
 }
+/*
+	Scan the area for objects
+*/
+uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
+	uint16_t error = 0, readingNr = 0, nrReadings = 0;
+	uint16_t positionDeg = 0;
+        int totalRangeDeg = 0;
+
+	console.println("(scanArea #1) Checking parameters..");
+
+	//	Check the parameters
+	if (startDeg > stopDeg) {
+		//	Start can't be greater than stop
+		error = 400;
+	} else if (((SERVO_MAX_DEGREES == 90) && ((startDeg < -90) || (stopDeg > 90))) || ((SERVO_MAX_DEGREES == 180) && ((startDeg < 0) || (stopDeg > 180)))) {
+		//	One or more parameters is outside of the valid range
+		error = 401;
+	} else if ((startDeg < pan->minPulse) || (stopDeg > pan->maxPulse)) {
+		//	Out of range for the pan servo
+		error = 402;
+	} else {
+		//	Calculate the total range, in degrees
+		totalRangeDeg = abs(stopDeg - startDeg);
+
+		//	Calculate the number of readings we need room for
+		nrReadings = totalRangeDeg / incrDeg;
+
+		//	More error checking
+		if (totalRangeDeg > 180) {
+			//	Servos can only move up to 180 degrees
+			error = 403;
+		} else if (nrReadings > MAX_NUMBER_AREA_READINGS) {
+			//	We can't take this many readings
+			error = 404;
+		} else if (incrDeg > totalRangeDeg) {
+			//	Increment is too large for our range
+			error = 405;
+		} else {
+			//	Continue normal processing
+			readingNr = 0;
+
+			console.println("Scanning the area..");
+
+			for (positionDeg = startDeg; positionDeg < stopDeg; positionDeg += incrDeg) {
+				moveServoDegrees(pan, positionDeg, 0, 0, true);
+
+				//	Take a reading from each pan/tilt sensor in cm
+				areaScan[readingNr].ping = readPING(PING_FRONT_CENTER, true);
+				areaScan[readingNr].ir = readIR(IR_FRONT_CENTER);
+				areaScan[readingNr].positionDeg = positionDeg;
+
+				readingNr += 1;
+			}
+		}
+	}
+
+	if (error != 0) {
+		processError(error, "scanArea");
+		nrAreaReadings = -1;
+	} else {
+		//	Set the number of readings taken
+		nrAreaReadings = readingNr;
+	}
+
+	return error;
+}
 
 /********************************************/
-/*	End of SSC-32 servo controller routines	*/
+/*	Miscellaneous routines					*/
 /********************************************/
 
 /*
     Process error conditions
 */
-void processError (byte err) {
-	console.print("Error: ");
+void processError (byte err, String routine) {
+	console.print("Error in routine ");
+	console.print(routine);
+	console.print(", Code: ");
 	console.print(err);
-	console.println("");
+	console.println("!");
 }
-
 /*
 	Test all the displays
 */
@@ -1360,7 +1313,10 @@ void loop (void) {
 
 	//	Display related variables
 	boolean amTime, pitchRollValid = false, headingValid = false;
+	boolean areaScanValid = false, hasMoved = false;
 	uint8_t displayNr = 0, count = 0;
+	uint8_t readingNr = 0, areaClosestReadingPING = 0, areaClosestReadingIR = 0;
+	uint8_t areaFarthestReadingPING = 0, areaFarthestReadingIR = 0;
 	uint8_t currentHour = now.hour(), nrDisplays = 0;
 	uint16_t displayInt;
 
@@ -1396,6 +1352,19 @@ void loop (void) {
 	*/
 	if (firstLoop) {
 		lastMinute = currentMinute;
+
+		areaScanValid = false;
+
+		//	Scan the entire 180 degree range and take readings
+		console.println("Doing initial area scan..");
+
+		error = scanArea(&pan, -90, 90, 10);
+
+		if (error != 0) {
+			processError(error, "Main, firstLoop");
+		} else {
+			areaScanValid = true;
+		}
 
 		firstLoop = false;
 	}
@@ -1538,6 +1507,39 @@ void loop (void) {
 		Put distance related reactive behaviors HERE
 	*/
 
+	//	Find the closest and farthest objects
+	if (areaScanValid) {
+		areaClosestReadingPING = 0;
+		areaClosestReadingIR = 0;
+		areaFarthestReadingPING = 0;
+		areaFarthestReadingIR = 0;
+
+		console.println("Finding the closest and farthest objects..");
+
+		//	Find the closest and farthest objects
+		for (readingNr = 0; readingNr < nrAreaReadings; readingNr++) {
+			//	Check for the closest object
+			if (areaScan[readingNr].ping < areaScan[areaClosestReadingPING].ping) {
+				areaClosestReadingPING = readingNr;
+			}
+
+			if (areaScan[readingNr].ir <  areaScan[areaClosestReadingIR].ir) {
+				areaClosestReadingIR = readingNr;
+			}
+
+			//	Check for the farthest object
+			if (areaScan[readingNr].ping > areaScan[areaFarthestReadingPING].ping) {
+				areaFarthestReadingPING = readingNr;
+			}
+
+			if (areaScan[readingNr].ir > areaScan[areaFarthestReadingIR].ir) {
+				areaFarthestReadingIR = readingNr;
+			}
+		}
+	} else {
+		console.println("Area scan is not valid..");
+	}
+
 	/*
 		Read the RoboClaw 2x5 motor controller encoders
 	*/
@@ -1546,7 +1548,7 @@ void loop (void) {
 	error = readRoboClawData(roboClawAddress, &leftMotorM1, &rightMotorM2);
 
 	if (error != 0) {
-		processError(error);
+		processError(error, "readRoboClawData");
 	} else {
 		displayRoboClawData(roboClawAddress, &leftMotorM1, &rightMotorM2);
 	}
@@ -1632,10 +1634,6 @@ void loop (void) {
 	displayHeatSensorReadings(&heatData);
 
 	console.println();
-                                   
-	if (error != 0) {
-		processError(error);
-	}
 
 	//	Count the minutes
 	if (currentMinute != lastMinute) {

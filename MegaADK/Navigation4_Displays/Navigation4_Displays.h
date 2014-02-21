@@ -40,10 +40,10 @@
 #ifndef	__NAVIGATION4_DISPLAYS_H__
 #define	__NAVIGATION4_DISPLAYS_H__
 
-#define	NAV_I2C_ADDRESS					(0x50)
+#define	NAV_I2C_ADDRESS					0x50
 
-#define	BUILD_VERSION					"0.2.5"
-#define BUILD_DATE 						"12-Feb-2014"
+#define	BUILD_VERSION					"0.2.6"
+#define BUILD_DATE 						"21-Feb-2014"
 #define BUILD_BOARD						"Arduino Mega ADK"
 
 #define	COLOR_SENSOR_LED				53
@@ -53,7 +53,7 @@
 
 //	Display constants
 #define	MAX_NUMBER_7SEG_DISPLAYS		1
-#define	SEVEN_SEG_BASE_ADDR				(0x70)
+#define	SEVEN_SEG_BASE_ADDR				0x70
 
 #define	MATRIX_DISPLAY_ADDR				SEVEN_SEG_BASE_ADDR + MAX_NUMBER_7SEG_DISPLAYS
 
@@ -73,6 +73,9 @@
 /*
 	Sensor settings
 */
+
+#define	MAX_NUMBER_AREA_READINGS		36
+
 #define	IR_PIN_BASE						6			//	Analog 6
 #define	PING_PIN_BASE					24			//	Digital 24
 
@@ -150,9 +153,15 @@
 #define	SERVO_TILT_ADJUST				-150
 #define	SERVO_TILT_DOWN_MAX				500
 #define	SERVO_TILT_UP_MAX				2000
-/*
-	End of SSC-32 definitions
-*/
+
+struct AreaDistanceReading {
+	float ir;
+	uint16_t ping;
+	struct ColorSensor *colorData;
+	struct HeatSensor *heatData;
+
+	int positionDeg;
+};
 
 struct ColorSensor {
 	uint16_t colorTemp;
