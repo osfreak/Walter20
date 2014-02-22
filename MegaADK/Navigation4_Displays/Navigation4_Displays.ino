@@ -895,7 +895,7 @@ uint16_t readRoboClawData (uint8_t address, Motor *leftMotorM1, Motor *rightMoto
 /*
     Move a servo by pulse width in ms (500ms - 2500ms) - Modified to use HardwareSerial2()
 */
-uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpeed = 0, int moveTime = 0) {
+uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveTime = 0, int moveSpeed = 0) {
 	uint16_t errorStatus = 0;
   
 	if ((servoPosition >= servo->minPulse) && (servoPosition <= servo->maxPulse)) {
@@ -938,7 +938,7 @@ uint16_t moveServoPw (Servo *servo, int servoPosition, boolean term, int moveSpe
 /*
     Move a servo by degrees (-90 to 90) or (0 - 180) - Modified to use BMSerial
 */
-uint16_t moveServoDeg (Servo *servo, int servoDeg, boolean term, int moveSpeed = 0, int moveTime = 0) {
+uint16_t moveServoDeg (Servo *servo, int servoDeg, boolean term, int moveTime = 0, int moveSpeed = 0) {
 	uint16_t errorStatus = 0;
 	int servoPulse = SERVO_CENTER_MS + servo->offset;	
 	int currPosDeg;
@@ -1021,7 +1021,7 @@ uint16_t moveServoDeg (Servo *servo, int servoDeg, boolean term, int moveSpeed =
 	Scan the area for objects
 */
 uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
-	uint16_t readingNr, positionDeg;
+	int readingNr, positionDeg;
 	int nrReadings, totalRangeDeg = 0;
 
 	uint16_t errorStatus = 0;
@@ -1070,14 +1070,13 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 			readingNr = 0;
 			positionDeg = startDeg;
 
-//			for (readingNr = 0, positionDeg = startDeg; positionDeg <= stopDeg; positionDeg += incrDeg, readingNr++) {
 			while (positionDeg <= stopDeg) {
 				console.print("(scanArea #3) positionDeg = ");
 				console.print(positionDeg);
 				console.print(", readingNr = ");
 				console.println(readingNr);
 
-				moveServoDeg(pan, positionDeg, true);
+				moveServoDeg(pan, positionDeg, true, 1000);
 
 				//	Take a reading from each pan/tilt sensor in cm
 				areaScan[readingNr].ping = readPING(PING_FRONT_CENTER, true);
@@ -1087,6 +1086,8 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 				readingNr += 1;
 				positionDeg += incrDeg;
 			}
+
+			initPanTilt();
 		}
 	}
 
