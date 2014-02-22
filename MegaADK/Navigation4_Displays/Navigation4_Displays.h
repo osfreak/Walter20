@@ -1,4 +1,22 @@
 /*
+	W.A.L.T.E.R. 2.0: Navigation and basic sensor reaction behaviors sketch.
+	Copyright (C) 2013 Dale A. Weber <hybotics.pdx@gmail.com>
+
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*
 	Program:      	W.A.L.T.E.R. 2.0, Main navigation, and reactive behaviors, header file
 	Date:         	13-Feb-2014
 	Version:      	0.2.5 Arduino Mega ADK - ALPHA
@@ -34,8 +52,6 @@
 						microphones being used for sound detection. I've also pulled
 						code for the GP2D12 IR and PING sensors from the Arduino
 						Playground, which I have modified to suit my needs.
-
-					Copyright (C) 2013 Dale Weber <hybotics.pdx@gmail.com>.
 */
 #ifndef	__NAVIGATION4_DISPLAYS_H__
 #define	__NAVIGATION4_DISPLAYS_H__
@@ -93,7 +109,7 @@
 #define	IR_BACK_RIGHT					3
 
 //	RoboClaw 2x5 Motor Controller Packet Serial constants
-#define	ROBOCLAW_CONTROLLERS			1
+#define	ROBOCLAW_CONTROLLERS			0
 #define	ROBOCLAW_SERIAL_BASE_ADDR		0x80
 
 #define ROBOCLAW_KP						1.0
@@ -154,7 +170,7 @@
 #define	SERVO_TILT_DOWN_MAX				500
 #define	SERVO_TILT_UP_MAX				2000
 
-struct AreaDistanceReading {
+struct AreaScanReading {
 	float ir;
 	uint16_t ping;
 	struct ColorSensor *colorData;
