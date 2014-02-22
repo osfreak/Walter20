@@ -943,74 +943,28 @@ uint16_t moveServoDeg (Servo *servo, int servoDeg, boolean term, int moveTime = 
 	int servoPulse = SERVO_CENTER_MS + servo->offset;	
 	int currPosDeg;
 
-	if (servo->maxDegrees == 90) {
-		currPosDeg = 0;
-
-		if ((servoDeg < -90) || (servoDeg > 90)) {
-			errorStatus = 201;
-		}
-	} else if (servo->maxDegrees == 180) {
-		currPosDeg = 90;
-
-		if ((servoDeg < 0) || (servoDeg > 180)) {
-			errorStatus = 201;
-		}
+	if (((servo->maxDegrees == 90) && ((servoDeg < -90) || (servoDeg > 90))) ||
+		((servo->maxDegrees == 180) && ((servoDeg < 0) || (servoDeg > 180)))) {
+		errorStatus = 201;
 	} else {
-		errorStatus = 202;
-	}
-
-	if (errorStatus != 0) {
-		processError(errorStatus, "moveServoDeg");
-	} else {
-		console.print("(moveServoDeg #1) servoPulse = ");
-		console.println(servoPulse);
-	  
 		//  Convert degrees to ms for the servo move
 		if (servo->maxDegrees == 90) {
 			servoPulse += (servoDeg * 10);
 		} else if (servo->maxDegrees == 180) {
 			servoPulse += ((servoDeg - 90) * 10);
+		} else {
+			errorStatus = 202;
 		}
 
-		console.print("(moveServoDeg #2) servoPulse = ");
-		console.print(servoPulse);
-		console.print(", maxDegrees = ");
-		console.println(servo->maxDegrees);
-
-		if ((servoPulse >= servo->minPulse) && (servoPulse <= servo->maxPulse)) {
-			ssc32.print("#");
-			ssc32.print(servo->pin);
-			ssc32.print(" P");
-			ssc32.print(servoPulse);
-
-			servo->msPulse = servoPulse;
-			servo->angle = servoDeg;
-	    
-			if (servo->maxDegrees == 180) {
-				servo->angle += 90;
-			}
-		} else if ((servoPulse < servo->minPulse) || (servoPulse > servo->maxPulse)) {
-			errorStatus = 203;
-		}
-	  
 		if (errorStatus != 0) {
 			processError(errorStatus, "moveServoDeg");
 		} else {
-			//  Add servo move speed
-			if (moveSpeed != 0) {
-				ssc32.print(" S");
-				ssc32.print(moveSpeed);
-			}
-	    
-			//  Terminate the command
-			if (term) {
-				if (moveTime != 0) {
-					ssc32.print(" T");
-					ssc32.print(moveTime);
-				}
-	      
-				ssc32.println();
-			}
+			console.print("(moveServoDeg #1) servoPulse = ");
+			console.print(servoPulse);
+			console.print(", servoDeg = ");
+			console.println(servoDeg);
+
+			moveServoPw(servo, servoPulse, term, moveTime, moveSpeed);
 		}
 	}
 
@@ -1091,9 +1045,6 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 		}
 	}
 
-	console.print("(scanArea #4) errorStatus = ");
-	console.println(errorStatus);
-
 	if (errorStatus != 0) {
 		processError(errorStatus, "scanArea");
 		nrAreaScanReadings = -1;
@@ -1120,6 +1071,22 @@ void processError (uint16_t err, String routineName) {
 	console.print(", Code: ");
 	console.print(err);
 	console.println("!");
+}
+
+/*
+	Wait for a bit to allow time to read the Console Serial Monitor log
+*/
+void wait (uint8_t nrSeconds) {
+	uint8_t count;
+
+	console.print("Waiting");
+
+	for (count = 0; count < nrSeconds; count++) {
+		console.print(".");
+		delay(1000);
+	}
+
+	console.println();
 }
 
 /*
@@ -1193,8 +1160,8 @@ void initPanTilt (void) {
 	//  Put the front pan/tilt at home position
 	moveServoPw(&pan, SERVO_CENTER_MS, false);
 	moveServoPw(&tilt, SERVO_CENTER_MS, true);
-//	moveServoDeg(&panS, moveDegrees, false);
-//	moveServoDeg(&tiltS, moveDegrees, true);
+//	moveServoDeg(&pan, 0, false);
+//	moveServoDeg(&tilt, 0, true);
 }
 
 /*
@@ -1439,6 +1406,8 @@ void loop (void) {
 		if (error != 0) {
 			processError(error, "Main, firstLoop");
 		}
+
+		wait(LOOP_DELAY_SECONDS);
 
 		firstLoop = false;
 	}
@@ -1720,16 +1689,7 @@ void loop (void) {
 		displayTime = (timeMinuteCount == DISPLAY_TIME_FREQ_MIN);
 	}
 
-	/*
-		Delay to allow time to read the Serial Monitor information log
-	*/
-	console.print("Waiting");
+	wait(LOOP_DELAY_SECONDS);
 
-	for (count = 0; count < LOOP_DELAY_SECONDS; count++) {
-		console.print(".");
-		delay(1000);
-	}
-
-	console.println();
 	console.println();
 }
