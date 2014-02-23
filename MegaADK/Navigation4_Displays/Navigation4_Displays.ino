@@ -17,31 +17,31 @@
 */
 
 /*
-	Program:		W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:			21-Feb-2014
-	Version:		0.2.6 Arduino Mega ADK - ALPHA
+	Program:	W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
+	Date:		21-Feb-2014
+	Version:	0.2.6 Arduino Mega ADK - ALPHA
 
-	Purpose:		To handle the navigation and navigation related sensor subsystem for
-						W.A.L.T.E.R. 2.0
+	Purpose:	To handle the navigation and navigation related sensor subsystem for
+				W.A.L.T.E.R. 2.0
 						
 	Dependencies:	Adafruit libraries:
-						Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries.
-						Adafruit_LEDBackpack and Adafruit_GFX libraries (for the displays)
+				Adafruit_Sensor, Adafruit_L3GD20, Adafruit_TMP006, and Adafruit_TCS34725 libraries.
+				Adafruit_LEDBackpack and Adafruit_GFX libraries (for the displays)
 
-					Hybotics libraries:
-						Hybotics_BMP180_Unified (forked from the Adafruit_BMP085 library)
-						Hybotics_10DOF_Unified (forked from the Adafruit_10DOF library)
-						Hybotics_LSM303DLHC_Unified (forked from the Adafruit_LSM303 library)
+				Hybotics libraries:
+					Hybotics_BMP180_Unified (forked from the Adafruit_BMP085 library)
+					Hybotics_10DOF_Unified (forked from the Adafruit_10DOF library)
+					Hybotics_LSM303DLHC_Unified (forked from the Adafruit_LSM303 library)
 
-					Other libraries:
-						RTClib for the DS1307 (Adafruit version),
-						KalmanFilter
+				Other libraries:
+					RTClib for the DS1307 (Adafruit version),
+					KalmanFilter
 
-	Comments:		Credit is given, where applicable, for code I did not originate.
-						This sketch started out as an Adafruit tutorial for the electret
-						microphones being used for sound detection. I've also pulled
-						code for the GP2Y0A21YK0F IR and PING sensors from the Arduino
-						Playground, which I have modified to suit my needs.
+	Comments:	Credit is given, where applicable, for code I did not originate.
+				This sketch started out as an Adafruit tutorial for the electret
+				microphones being used for sound detection. I've also pulled
+				code for the GP2Y0A21YK0F IR and PING sensors from the Arduino
+				Playground, which I have modified to suit my needs.
 */
 
 #include <Wire.h>
