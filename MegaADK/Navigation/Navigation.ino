@@ -73,18 +73,9 @@
 #include "Navigation.h"
 #include "Pitches.h"
 
-/***************************************************************************
-  This sketch uses the 10DOF IMU from Adafruit, which has a
-    BMP180 Temperature/Barometric pressure sensor, a
-    LMS303DLHC Three-axis accelerometer / Three-axis magnetometer (compass),
-    and a L3GD20 Three-axis Gyroscope.
-    
-    Adafruit product http://www.adafruit.com/products/1604
-***************************************************************************/
-
-/*
-    Global variables
-*/
+/********************************************************************/
+	Global objects
+/********************************************************************/
 
 /*
 	Initialize our sensors
@@ -116,10 +107,36 @@ Adafruit_TCS34725 rgbColor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TC
 Adafruit_TMP006 heat = Adafruit_TMP006();
 RTC_DS1307 clock;
 
-/*
-    Initialize global variables
-*/
+/********************************************************************/
+	Initialize global variables
+/********************************************************************/
+
+//	Total number of area readings taken, or -1 if data is not valid
+int nrAreaScanReadings;
+
+//  These are where the range sensor readings are stored.
+int ping[MAX_NUMBER_PING];
+float ir[MAX_NUMBER_IR];
+
 boolean areaScanValid = false, hasMoved = false;
+
+//	Readings for full area scans
+AreaScanReading areaScan[MAX_NUMBER_AREA_READINGS];
+
+//	Readings from the TCS34725 RGB Color Sensor
+ColorSensor colorData = {
+	0,
+	0,
+	0,
+	0,
+	0
+};
+
+//	Readings from the TMP006 Heat Sensor
+HeatSensor heatData = {
+	0.0,
+	0.0
+};
 
 /*
 	These variables control the display of various information
@@ -145,10 +162,10 @@ uint8_t currentMinute = 0;
 uint8_t lastMinute = -1;
 long minuteCount = 0;						//	Count the time, in minutes, since we were last restarted
 
-//	Enable run once only loop code to run
+//	Enable run once only loop initialization code to run for special cases
 boolean firstLoop = true;
 
-//  Support for multiple 7 segment displays
+//	Support for multiple 7 segment displays
 Adafruit_7segment sevenSeg[MAX_NUMBER_7SEG_DISPLAYS];
 
 Adafruit_8x8matrix matrix8x8 = Adafruit_8x8matrix();
@@ -177,12 +194,14 @@ char *roboClawVersion;
 
 //	RoboClaw 2x5 motor M1
 Motor leftMotorM1;
+
 //	RoboClaw 2x5 motor M2
 Motor rightMotorM2;
 
-/*
-    Initialize servos
-*/
+/********************************************************************/
+	Initialize servos
+/********************************************************************/
+
 Servo pan = {
 	SERVO_PAN_PIN,
 	SERVO_PAN_ADJUST,
@@ -205,138 +224,117 @@ Servo tilt = {
 	0
 };
 
-//	Total number of area readings taken, or -1 if data is not valid
-int nrAreaScanReadings;
-
-//  These are where the range sensor readings are stored.
-int ping[MAX_NUMBER_PING];
-float ir[MAX_NUMBER_IR];
-
-AreaScanReading areaScan[MAX_NUMBER_AREA_READINGS];
-
-ColorSensor colorData = {
-	0,
-	0,
-	0,
-	0,
-	0
-};
-
-HeatSensor heatData = {
-	0.0,
-	0.0
-};
-
-/*
+/********************************************************************/
 	Bitmaps for the drawBitMap() routine
-*/
-static const uint8_t PROGMEM
-  hpa_bmp[] = {
-    B10001110,
-    B10001001,
-    B11101110,
-    B10101000,
-    B00000100,
-    B00001010,
-    B00011111,
-    B00010001
-  },
-    
-  c_bmp[] = {
-    B01110000,
-    B10001000,
-    B10000000,
-    B10001000,
-    B01110000,
-    B00000000,
-    B00000000,
-    B00000000
-  },
-    
-  f_bmp[] = {
-    B11111000,
-    B10000000,
-    B11100000,
-    B10000000,
-    B10000000,
-    B00000000,
-    B00000000,
-    B00000000
-  },
-    
-  m_bmp[] = {
-    B00000000,
-    B00000000,
-    B00000000,
-    B00000000,
-    B11101110,
-    B10111010,
-    B10010010,
-    B10000010
-  },
+*/*******************************************************************/
 
-  date_bmp[] = {
-    B10110110,
-    B01001001,
-    B01001001,
-    B00000100,
-    B00000100,
-    B01111100,
-    B10000100,
-    B01111100
-  },
-  
-  year_bmp[] = {
-    B00000000,
-    B10001000,
-    B10001000,
-    B01110000,
-    B00101011,
-    B00101100,
-    B00101000,
-    B00000000
-  },
-  
-  am_bmp[] = {
-    B01110000,
-    B10001010,
-    B10001010,
-    B01110100,
-    B00110110,
-    B01001001,
-    B01001001,
-    B01001001
-  },
- 
-  pm_bmp[] = {
-    B01111100,
-    B10000010,
-    B11111100,
-    B10000000,
-    B10110110,
-    B01001001,
-    B01001001,
-    B01001001
-  },
-  
-  allon_bmp[] = {
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111,
-    B11111111
-  };
+static const uint8_t PROGMEM
+	hpa_bmp[] = {
+		B10001110,
+		B10001001,
+		B11101110,
+		B10101000,
+		B00000100,
+		B00001010,
+		B00011111,
+		B00010001
+	},
+
+	c_bmp[] = {
+		B01110000,
+		B10001000,
+		B10000000,
+		B10001000,
+		B01110000,
+		B00000000,
+		B00000000,
+		B00000000
+	},
+
+	f_bmp[] = {
+		B11111000,
+		B10000000,
+		B11100000,
+		B10000000,
+		B10000000,
+		B00000000,
+		B00000000,
+		B00000000
+	},
+
+	m_bmp[] = {
+		B00000000,
+		B00000000,
+		B00000000,
+		B00000000,
+		B11101110,
+		B10111010,
+		B10010010,
+		B10000010
+	},
+
+	date_bmp[] = {
+		B10110110,
+		B01001001,
+		B01001001,
+		B00000100,
+		B00000100,
+		B01111100,
+		B10000100,
+		B01111100
+	},
+
+	year_bmp[] = {
+		B00000000,
+		B10001000,
+		B10001000,
+		B01110000,
+		B00101011,
+		B00101100,
+		B00101000,
+		B00000000
+	},
+
+	am_bmp[] = {
+		B01110000,
+		B10001010,
+		B10001010,
+		B01110100,
+		B00110110,
+		B01001001,
+		B01001001,
+		B01001001
+	},
+
+	pm_bmp[] = {
+		B01111100,
+		B10000010,
+		B11111100,
+		B10000000,
+		B10110110,
+		B01001001,
+		B01001001,
+		B01001001
+	},
+
+	allon_bmp[] = {
+		B11111111,
+		B11111111,
+		B11111111,
+		B11111111,
+		B11111111,
+		B11111111,
+		B11111111,
+		B11111111
+	};
 
 /*
 	Code starts here
 */
 
-/************************************************************/
+/********************************************************************/
 /*	Utility routines										*/
-/************************************************************/
+/********************************************************************/
 
 /*
     Left zero pad a numeric string
@@ -1050,9 +1048,9 @@ uint16_t scanArea (Servo *pan, int startDeg, int stopDeg, int incrDeg) {
 	return errorStatus;
 }
 
-/********************************************/
+/********************************************************************/
 /*	Miscellaneous routines					*/
-/********************************************/
+/********************************************************************/
 
 /*
     Process error conditions
@@ -1105,9 +1103,9 @@ void testDisplays (uint8_t totalDisplays) {
 	clearDisplays();
 }
 
-/********************************************************/
+/********************************************************************/
 /*	Initialization routines								*/
-/********************************************************/
+/********************************************************************/
 
 /*
 	Initialize displays
