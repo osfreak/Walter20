@@ -18,7 +18,7 @@
 
 /*
 	Program:	W.A.L.T.E.R. 2.0, Main navigation and reactive behaviors sketch
-	Date:		23-Feb-2014
+	Date:		26-Feb-2014
 	Version:	0.2.7 Arduino Mega ADK - ALPHA
 
 	Purpose:	To handle the navigation and navigation related sensor subsystem for
