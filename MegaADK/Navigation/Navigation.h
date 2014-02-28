@@ -18,8 +18,8 @@
 
 /*
 	Program:      	W.A.L.T.E.R. 2.0, Main navigation, and reactive behaviors, header file
-	Date:         	13-Feb-2014
-	Version:      	0.2.5 Arduino Mega ADK - ALPHA
+	Date:         	26-Feb-2014
+	Version:      	0.2.7 Arduino Mega ADK - ALPHA
 
 	Purpose:	Added definitions for SoftwareSerial ports for the SSC-32 and RoboClaw 2x5
 
